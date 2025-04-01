@@ -4,8 +4,8 @@ import { config, environment } from '../config/index.js';
 import { ErrorHandler } from '../utils/errorHandler.js';
 import { logger } from '../utils/logger.js';
 import { requestContextService } from "../utils/requestContext.js"; // Import the service
-import { registerEchoResource } from './resources/echoResource/index.js';
-import { registerEchoTool } from './tools/echoTool/index.js';
+// Tool Registrations
+import { registerPerplexitySearchTool } from './tools/perplexitySearch/index.js'; // Import the new search tool registration
 
 /**
  * Creates, configures, and connects the main MCP server instance.
@@ -47,13 +47,11 @@ export const createMcpServer = async (): Promise<McpServer> => {
 
   // Register resources and tools using their dedicated functions
   try {
-    logger.info("Registering resources and tools...", operationContext);
+    logger.info("Registering tools...", operationContext);
     // Pass the McpServer instance to the registration functions
-    await registerEchoResource(server);
-    logger.debug("Echo resource registered.", operationContext);
-    await registerEchoTool(server);
-    logger.debug("Echo tool registered.", operationContext);
-    logger.info("Resources and tools registered successfully.", operationContext);
+    registerPerplexitySearchTool(server); // Register the new search tool - Changed from await as registration is sync
+    logger.debug("Perplexity Search tool registered.", operationContext);
+    logger.info("Tools registered successfully.", operationContext);
   } catch (registrationError) {
      // ErrorHandler within registration functions should handle specific logging/throwing
      // This catch block handles unexpected errors during the registration process itself

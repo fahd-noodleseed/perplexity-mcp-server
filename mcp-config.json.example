@@ -1,0 +1,18 @@
+{
+  "mcpServers": {
+    "perplexity-mcp-server": {
+      "command": "node",
+      "args": [
+        "/path/to/your/perplexity-mcp-server/dist/index.js"
+      ],
+      "env": {
+        "PERPLEXITY_API_KEY": "YOUR_PERPLEXITY_API_KEY_HERE",
+        "LOG_LEVEL": "info", // Optional: debug, info, warn, error (defaults to info)
+        "NODE_ENV": "development", // Optional: development, production (defaults to development)
+        "PERPLEXITY_DEFAULT_MODEL": "sonar-reasoning", // Optional: Defaults to sonar-reasoning
+        "PERPLEXITY_DEFAULT_SEARCH_CONTEXT": "high" // Optional: low, medium, high (defaults to high)
+      }
+    }
+    // Add configurations for other MCP servers here if needed
+  }
+}

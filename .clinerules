@@ -1,9 +1,9 @@
-# mcp-ts-template Developer Cheatsheet
+# perplexity-mcp-server Developer Cheatsheet
 
-This cheatsheet provides quick references for common patterns and utilities within the `mcp-ts-template` codebase.
+This cheatsheet provides quick references for common patterns and utilities within the `perplexity-mcp-server` codebase.
 
 ## Core Utilities Integration
-```markdown
+
 ### 1. Logging (`src/utils/logger.ts`)
 
 - **Purpose**: Structured logging for debugging and monitoring. Logs to files in the `logs/` directory.
@@ -108,16 +108,17 @@ import { idGenerator } from './src/utils/idGenerator.js';
 
 // Configure prefixes (e.g., during initialization)
 idGenerator.setEntityPrefixes({
-  project: 'PROJ',
-  task: 'TASK'
+  request: 'REQ',
+  session: 'SESS'
+  // Add other entity prefixes as needed
 });
 
 // Generate IDs
-const projectId = idGenerator.generateForEntity('project'); // e.g., "PROJ_A6B3J0"
-const taskId = idGenerator.generateForEntity('task', { length: 8 }); // e.g., "TASK_C9D4E1F2"
+const requestId = idGenerator.generateForEntity('request'); // e.g., "REQ_A6B3J0"
+const sessionId = idGenerator.generateForEntity('session', { length: 8 }); // e.g., "SESS_C9D4E1F2"
 
 // Validate IDs
-const isValid = idGenerator.isValid(projectId, 'project'); // true
+const isValid = idGenerator.isValid(requestId, 'request'); // true
 ```
 
 - **Key Files**:
@@ -125,7 +126,7 @@ const isValid = idGenerator.isValid(projectId, 'project'); // true
 
 ### 5. Sanitization (`src/utils/sanitization.ts`)
 
-- **Purpose**: Clean and validate input data (HTML, paths, numbers, URLs, JSON) to prevent security issues.
+- **Purpose**: Clean and validate input data (HTML, paths, numbers, URLs, JSON) to prevent security issues and ensure data integrity.
 - **Usage**: Import the singleton `sanitization` instance.
 
 ```typescript
@@ -136,51 +137,128 @@ const safeHtml = sanitization.sanitizeHtml(unsafeHtml); // "<p>Safe content</p>"
 
 const unsafePath = '../../etc/passwd';
 try {
+  // Example: Ensure path stays within a designated directory
   const safePath = sanitization.sanitizePath(unsafePath, { rootDir: '/app/data' });
 } catch (error) {
-  // Handle McpError (BaseErrorCode.VALIDATION_ERROR)
+  // Handle McpError (BaseErrorCode.VALIDATION_ERROR) if path is invalid/unsafe
+  logger.error("Invalid path detected", { error: error.message });
 }
 
 const userInput = " 123.45 ";
-const num = sanitization.sanitizeNumber(userInput, 0, 1000); // 123.45
+const num = sanitization.sanitizeNumber(userInput, 0, 1000); // 123.45 (Clamps if outside range)
 
-// Sanitize objects for logging (removes sensitive fields)
-const sensitiveData = { user: 'admin', password: 'pwd', token: 'abc' };
+// Sanitize objects for logging (removes sensitive fields like passwords, tokens)
+const sensitiveData = { user: 'admin', password: 'pwd', token: 'abc', safeField: 'data' };
 const safeLogData = sanitization.sanitizeForLogging(sensitiveData);
-// safeLogData = { user: 'admin', password: '[REDACTED]', token: '[REDACTED]' }
+// safeLogData = { user: 'admin', password: '[REDACTED]', token: '[REDACTED]', safeField: 'data' }
 ```
 
 - **Key Files**:
   - `src/utils/sanitization.ts`: `Sanitization` class and `sanitization` instance.
+
+### 6. Rate Limiter (`src/utils/rateLimiter.ts`)
+
+- **Purpose**: Control the frequency of operations, typically used for external API calls or resource-intensive tasks.
+- **Usage**: Import and use the rate limiter instance (specific usage depends on implementation, likely involves acquiring a permit before proceeding).
+
+```typescript
+// Example (Conceptual - actual usage might differ based on implementation)
+import { rateLimiter } from './src/utils/rateLimiter.js';
+import { logger } from './src/utils/logger.js';
+import { RequestContext } from './src/utils/requestContext.js';
+
+async function makeRateLimitedApiCall(context: RequestContext) {
+  try {
+    await rateLimiter.acquire(); // Wait for permission based on configured rate
+    logger.debug("Rate limit permit acquired, proceeding with API call", context);
+    // ... perform the API call ...
+  } catch (error) {
+    logger.error("Failed to acquire rate limit permit or API call failed", { ...context, error: error.message });
+    // Handle error appropriately
+  } finally {
+    // Release permit if necessary (depends on implementation)
+    // rateLimiter.release();
+  }
+}
+```
+
+- **Key Files**:
+  - `src/utils/rateLimiter.ts`: Rate limiter implementation.
+
+### 7. Cost Tracker (`src/utils/costTracker.ts`)
+
+- **Purpose**: Estimate the cost of Perplexity API calls based on model and token usage. Uses pricing data defined within the utility.
+- **Usage**: Import `costTracker` and call `calculatePerplexityCost`.
+
+```typescript
+import { costTracker } from './src/utils/costTracker.js';
+import { RequestContext } from './src/utils/requestContext.js';
+
+// Inside the tool logic, after a successful API call
+const responseData = { /* ... Perplexity API response ... */ };
+const context: RequestContext = /* ... current context ... */;
+
+const estimatedCost = costTracker.calculatePerplexityCost(
+    responseData.model,
+    responseData.usage,
+    null, // searchMode (currently not passed, defaults to legacy/best-effort)
+    context
+);
+
+if (estimatedCost !== null) {
+    logger.info(`Estimated API call cost: $${estimatedCost}`, { ...context, estimatedCost });
+}
+```
+
+- **Key Files**:
+  - `src/utils/costTracker.ts`: Defines pricing data and `calculatePerplexityCost` function.
 
 ## Adding New Features
 
 ### Adding a Tool
 
 1.  **Directory**: `src/mcp-server/tools/yourToolName/`
-2.  **Logic (`logic.ts`)**: Define input/output types, validation schema (Zod recommended), and core processing function.
+2.  **Logic (`logic.ts`)**: Define input/output types, validation schema (Zod recommended), and core processing function. Use `RequestContext` and `ErrorHandler`.
 3.  **Registration (`registration.ts`)**: Import logic, schema shape, `McpServer`, `ErrorHandler`. Use `server.tool(name, schemaShape, async handler => { ... })`. Wrap handler logic and registration in `ErrorHandler.tryCatch`.
 4.  **Index (`index.ts`)**: Export registration function.
-5.  **Server (`src/mcp-server/server.ts`)**: Import and call registration function.
+5.  **Server (`src/mcp-server/server.ts`)**: Import and call registration function within `registerTools`.
 
 ### Adding a Resource
 
+*(Note: This project currently focuses on Tools. Resources are less common but follow a similar pattern if needed.)*
+
 1.  **Directory**: `src/mcp-server/resources/yourResourceName/`
-2.  **Logic (`logic.ts`)**: Define params type, query schema (if needed), and core processing function (takes `uri: URL`, `params`).
+2.  **Logic (`logic.ts`)**: Define params type, query schema (if needed), and core processing function (takes `uri: URL`, `params`). Use `RequestContext` and `ErrorHandler`.
 3.  **Registration (`registration.ts`)**: Import logic, schema, `McpServer`, `ResourceTemplate`, `ErrorHandler`. Define `ResourceTemplate`. Use `server.resource(regName, template, metadata, async handler => { ... })`. Wrap handler logic and registration in `ErrorHandler.tryCatch`.
 4.  **Index (`index.ts`)**: Export registration function.
-5.  **Server (`src/mcp-server/server.ts`)**: Import and call registration function.
+5.  **Server (`src/mcp-server/server.ts`)**: Import and call registration function within `registerResources`.
 
 ## Key File Locations
 
-- **Main Entry**: `src/index.ts` (Initializes server)
-- **Server Setup**: `src/mcp-server/server.ts` (Registers tools/resources)
+- **Main Entry**: `src/index.ts` (Initializes server, handles signals)
+- **Server Setup**: `src/mcp-server/server.ts` (Creates server instance, registers tools/resources)
 - **Configuration**: `src/config/index.ts` (Loads env vars, package info)
-- **Global Types**: `src/types-global/`
-- **Utilities**: `src/utils/`
-- **Tools**: `src/mcp-server/tools/`
-- **Resources**: `src/mcp-server/resources/`
-- **Client Config**: `src/mcp-client/mcp-config.json` (Example, used for client connections)
+- **Global Types**: `src/types-global/` (e.g., `errors.ts`, `mcp.ts`, `tool.ts`)
+- **Utilities**: `src/utils/` (e.g., `logger.ts`, `errorHandler.ts`, `requestContext.ts`)
+- **Services**: `src/services/` (e.g., `perplexityApi.ts`)
+- **Tools**: `src/mcp-server/tools/` (Each tool in its subdirectory)
+- **Resources**: `src/mcp-server/resources/` (Each resource in its subdirectory, if any)
+- **Client Example**: *Removed or relocated*
+
+## Available Tools
+
+### `perplexity_search`
+
+- **Purpose**: Performs a search-augmented query using the Perplexity API. It takes a natural language query, performs a web search using Perplexity's backend, and then uses an LLM (configured via environment variable) to synthesize an answer based on the search results.
+- **Environment Variable**: Requires `PERPLEXITY_API_KEY` to be set in the server's environment.
+- **Key Parameters**:
+    - `query` (string, required): The primary search query or question.
+    - `return_related_questions` (boolean, optional, default: false): Whether to suggest related questions.
+    - `search_recency_filter` (string, optional): Filter search results by timeframe (e.g., 'day', 'week').
+    - `search_domain_filter` (array of strings, optional): Limit search to specific domains (e.g., ['wikipedia.org']).
+    - `showThinking` (boolean, optional, default: false): Include the model's internal reasoning in the response.
+    - *Note: The specific Perplexity model used is determined by the server configuration (`config.perplexityDefaultModel`) and is not a direct input parameter.*
+    - *See `src/mcp-server/tools/perplexitySearch/logic.ts` (specifically `PerplexitySearchInputSchema`) for all parameters and validation rules.*
+- **Location**: `src/mcp-server/tools/perplexitySearch/`
 
 Remember to keep this cheatsheet updated as the codebase evolves!
-```

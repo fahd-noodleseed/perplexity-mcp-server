@@ -47,8 +47,23 @@ export const config = {
   },
   /** Perplexity API Key, loaded from environment variables. */
   perplexityApiKey: process.env.PERPLEXITY_API_KEY || "",
+  /** Default Perplexity model to use for search-like tools. */
+  perplexityDefaultModel: process.env.PERPLEXITY_DEFAULT_MODEL || "sonar-reasoning",
+  /** Default Perplexity search context size ('low', 'medium', 'high'). */
+  perplexityDefaultSearchContext: (process.env.PERPLEXITY_DEFAULT_SEARCH_CONTEXT || "high") as 'low' | 'medium' | 'high',
   // Note: mcpClient configuration is now loaded separately from mcp-config.json
 };
+
+// Validate search context size
+const validSearchContexts: Array<'low' | 'medium' | 'high'> = ['low', 'medium', 'high'];
+if (!validSearchContexts.includes(config.perplexityDefaultSearchContext)) {
+  logger.warn(`Invalid PERPLEXITY_DEFAULT_SEARCH_CONTEXT: "${config.perplexityDefaultSearchContext}". Defaulting to "high".`, {
+    configuredValue: config.perplexityDefaultSearchContext,
+    defaultValue: "high"
+  });
+  config.perplexityDefaultSearchContext = "high";
+}
+
 
 // Add a check for the Perplexity API key after the config object is defined
 if (!config.perplexityApiKey) {

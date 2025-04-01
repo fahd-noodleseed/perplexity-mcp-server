@@ -1,26 +1,23 @@
-# MCP TypeScript Template
+# Perplexity MCP Server
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-^5.8.2-blue.svg)](https://www.typescriptlang.org/)
 [![Model Context Protocol](https://img.shields.io/badge/MCP-^1.8.0-green.svg)](https://modelcontextprotocol.io/)
-[![Version](https://img.shields.io/badge/Version-1.0.1-blue.svg)]()
+[![Version](https://img.shields.io/badge/Version-1.0.0-blue.svg)]()
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Status](https://img.shields.io/badge/Status-Stable-green.svg)](https://github.com/cyanheads/mcp-ts-template/issues)
-[![GitHub](https://img.shields.io/github/stars/cyanheads/mcp-ts-template?style=social)](https://github.com/cyanheads/mcp-ts-template)
+[![Status](https://img.shields.io/badge/Status-Stable-green.svg)](https://github.com/casey/perplexity-mcp-server/issues) <!-- Assuming repo path, adjust if needed -->
+[![GitHub](https://img.shields.io/github/stars/casey/perplexity-mcp-server?style=social)](https://github.com/casey/perplexity-mcp-server) <!-- Assuming repo path, adjust if needed -->
 
-A beginner-friendly foundation for building [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) servers (and in the future also clients) with TypeScript. This template provides a comprehensive starting point with production-ready utilities, well-structured code, and working examples for building an MCP server.
+An MCP server providing tools to interact with the [Perplexity AI API](https://docs.perplexity.ai/docs/getting-started), built using the [mcp-ts-template](https://github.com/cyanheads/mcp-ts-template). This server allows AI agents compatible with the [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) to leverage Perplexity's search-augmented query capabilities. Includes a showThinking parameter to enable reasoning models to show its internal reasoning process.
 
-Copy this repo to kickstart your own MCP server and set your **vibe code** session up for success!
+## Core Features
 
-## Using this template as your repo will get you:
+- **Utilities**: Reusable components for logging, error handling, ID generation, rate limiting, and request context management.
+- **Type Safety**: Strong typing with TypeScript.
+- **Error Handling**: Robust error handling system.
+- **Security**: Basic security features like input sanitization.
+- **Perplexity Tool**: A ready-to-use tool for interacting with the Perplexity Search API.
 
-- **Utilities**: A set of reusable utilities for logging, error handling, ID generation, rate limiting, and request context management.
-- **Type Safety**: Strong typing with TypeScript to catch errors at compile time.
-- **Security**: Built-in security features to protect against common vulnerabilities.
-- **Error Handling**: A robust error handling system that categorizes and formats errors consistently.
-- **Documentation**: Comprehensive documentation for tools and resources, including usage examples and implementation details.
-- **Example Implementations**: Working examples of [echo_message (tool)](src/mcp-server/tools/echoTool/) and [echo://hello (resource)](src/mcp-server/resources/echoResource/) to help you get started quickly.
-
-> **.clinerules**: This repository includes a [.clinerules](.clinerules) file that serves as a developer cheat sheet for your LLM coding agent with quick reference for the codebase patterns, file locations, and code snippets. When copying this template for your own project, be sure to update the cheat sheet to reflect your modifications and additions.
+> **.clinerules**: This repository includes a [.clinerules](.clinerules) file that serves as a developer cheat sheet for LLM coding agents (like Cline) providing quick references for codebase patterns, file locations, and code snippets specific to this project.
 
 ## Table of Contents
 
@@ -32,17 +29,15 @@ Copy this repo to kickstart your own MCP server and set your **vibe code** sessi
   - [Type Safety](#type-safety)
   - [Error Handling](#error-handling)
   - [Security](#security)
-  - [Example Implementations](#example-implementations)
+  - [Perplexity Search Tool](#perplexity-search-tool)
 - [Installation](#installation)
 - [Configuration](#configuration)
 - [Project Structure](#project-structure)
-- [Tool & Resource Documentation](#tool--resource-documentation)
-  - [Tools](#tools)
-  - [Resources](#resources)
+- [Tool Documentation](#tool-documentation)
+  - [perplexity_search](#perplexity_search)
 - [Development Guidelines](#development-guidelines)
   - [Adding a New Tool](#adding-a-new-tool)
   - [Adding a New Resource](#adding-a-new-resource)
-- [Future Plans](#future-plans)
 - [License](#license)
 
 ## Overview
@@ -55,11 +50,11 @@ Model Context Protocol (MCP) is a framework that enables AI systems to interact 
 - Access structured **resources** that provide information
 - Create contextual workflows through standardized interfaces
 
-This template gives you a head start in building MCP servers that can be used by AI systems to extend their capabilities.
+This server allows AI systems to use the Perplexity API via MCP.
 
 ### Architecture & Components
 
-The template follows a modular architecture designed for clarity and extensibility:
+The server is based on the `mcp-ts-template` and follows its modular architecture:
 
 <details>
 <summary>Click to expand architecture diagram</summary>
@@ -89,14 +84,11 @@ flowchart TB
 
     subgraph Implementation["Implementation Layer"]
         direction LR
-        Tool["Tools"]
-        Resource["Resources"]
+        Tool["Tools (Perplexity)"]
         Util["Utilities"]
 
         Tool --> Server
-        Resource --> Server
         Util --> Tool
-        Util --> Resource
     end
 
     San --> Config
@@ -105,7 +97,7 @@ flowchart TB
     classDef layer fill:#2d3748,stroke:#4299e1,stroke-width:3px,rx:5,color:#fff
     classDef component fill:#1a202c,stroke:#a0aec0,stroke-width:2px,rx:3,color:#fff
     class API,Core,Implementation layer
-    class MCP,Val,San,Config,Logger,Error,Server,Tool,Resource,Util component
+    class MCP,Val,San,Config,Logger,Error,Server,Tool,Util component
 ```
 
 </details>
@@ -115,7 +107,7 @@ Core Components:
 - **Configuration System**: Environment-aware configuration with validation
 - **Logging System**: Structured logging with sensitive data redaction
 - **Error Handling**: Centralized error processing with consistent patterns
-- **MCP Server**: Protocol implementation for tools and resources
+- **MCP Server**: Protocol implementation for tools
 - **Validation Layer**: Input validation and sanitization using `validator` and `sanitize-html`.
 - **Utilities**: Reusable utility functions for common operations
 
@@ -129,6 +121,7 @@ Core Components:
 - **Rate Limiting**: Request throttling to prevent API abuse
 - **Request Context**: Request tracking and correlation
 - **Sanitization**: Input validation and cleaning using `validator` and `sanitize-html`.
+- **Cost Tracking**: Estimation of Perplexity API costs based on model and token usage
 
 ### Type Safety
 
@@ -151,10 +144,9 @@ Core Components:
 - **Parameter Bounds**: Enforced limits within sanitization logic to prevent abuse.
 - **Sensitive Data Redaction**: Automatic redaction in logs.
 
-### Example Implementations
+### Perplexity Search Tool
 
-- **[Echo Tool](src/mcp-server/tools/echoTool/)**: Complete example of a tool implementation including registration.
-- **[Echo Resource](src/mcp-server/resources/echoResource/)**: Complete example of a resource implementation including registration.
+- **[perplexity_search](src/mcp-server/tools/perplexitySearch/)**: The core tool provided by this server, enabling interaction with the Perplexity Search API.
 
 ## Installation
 
@@ -162,14 +154,16 @@ Core Components:
 
 - [Node.js (v18+)](https://nodejs.org/)
 - [npm](https://www.npmjs.com/) or [yarn](https://yarnpkg.com/)
+- A Perplexity API Key (see [Configuration](#configuration))
 
 ### Setup
 
 1. Clone this repository:
 
    ```bash
-   git clone https://github.com/cyanheads/mcp-ts-template.git
-   cd mcp-ts-template
+   # Replace with the actual repository URL if different
+   git clone https://github.com/casey/perplexity-mcp-server.git
+   cd perplexity-mcp-server
    ```
 
 2. Install dependencies:
@@ -186,127 +180,146 @@ Core Components:
 
 ## Configuration
 
-### MCP Client Settings & Environment Variables (Optional)
+### Environment Variables
 
-Add to your MCP client settings:
+This server requires the following environment variables:
+
+| Variable                            | Description                                       | Default Value     |
+| ----------------------------------- | ------------------------------------------------- | ----------------- |
+| `PERPLEXITY_API_KEY`                | API key for authentication with Perplexity        | (Required)        |
+| `PERPLEXITY_DEFAULT_MODEL`          | Default model to use for Perplexity requests      | "sonar-reasoning" |
+| `PERPLEXITY_DEFAULT_SEARCH_CONTEXT` | Search context size ('low', 'medium', 'high')     | "high"            |
+| `LOG_LEVEL`                         | Logging level ("debug", "info", "warn", "error")  | "info"            |
+| `NODE_ENV`                          | Runtime environment ("development", "production") | "development"     |
+
+### MCP Client Settings
+
+Add this server to your MCP client settings (e.g., in VS Code or Claude Desktop):
 
 ```json
 {
   "mcpServers": {
-    "atlas": {
+    "perplexity": {
       "command": "node",
-      "args": ["/path/to/mcp-ts-template/dist/index.js"],
-      "env": {}
+      "args": ["/path/to/perplexity-mcp-server/dist/index.js"],
+      "env": {
+        "PERPLEXITY_API_KEY": "YOUR_PERPLEXITY_API_KEY"
+      }
     }
   }
 }
 ```
 
-### Configuration System
+Replace `/path/to/perplexity-mcp-server/dist/index.js` with the actual path to the built server file and `YOUR_PERPLEXITY_API_KEY` with your key.
 
-The configuration system provides a flexible way to manage settings:
+### Configuration System (Internal)
 
-- **Environment Config**: Load settings from environment variables
-- **MCP Servers Config**: Configure MCP server connections (for future client implementations)
-- **Lazy Loading**: Configurations are loaded only when needed
+The internal configuration system manages settings:
+
+- **Environment Config**: Loads settings like the API key from environment variables.
+- **Validation**: Validates configuration values (e.g., search context size).
+- **Logging**: Logs warnings for missing or invalid configuration.
 
 ## Project Structure
 
-The codebase follows a modular structure within the `src/` directory, including configurations (`config/`), MCP server logic (`mcp-server/` with tools and resources), global types (`types-global/`), and common utilities (`utils/`).
+The codebase follows a modular structure within the `src/` directory:
 
-For a detailed, up-to-date view of the project structure, run the following command:
+```
+src/
+├── config/           # Configuration management
+├── index.ts          # Main entry point
+├── mcp-server/       # MCP server implementation
+│   ├── server.ts     # Server setup and registration
+│   └── tools/        # Tool implementations
+│       └── perplexitySearch/
+│           ├── index.ts
+│           ├── logic.ts
+│           └── registration.ts
+├── services/         # External service integrations
+│   ├── index.ts
+│   └── perplexityApi.ts
+├── types-global/     # Global type definitions
+│   ├── errors.ts
+│   ├── mcp.ts
+│   └── tool.ts
+└── utils/            # Utility functions
+    ├── costTracker.ts
+    ├── errorHandler.ts
+    ├── idGenerator.ts
+    ├── index.ts
+    ├── logger.ts
+    ├── rateLimiter.ts
+    ├── requestContext.ts
+    └── sanitization.ts
+```
+
+For a detailed, up-to-date view of the project structure, run:
 
 ```bash
 npm run tree
 ```
 
-This command executes the `scripts/tree.ts` script, which generates a tree representation of the current project layout.
+## Tool Documentation
 
-## Tool & Resource Documentation
+### perplexity_search
 
-### Tools
+The `perplexity_search` tool performs search-augmented queries using the Perplexity API. It takes a natural language query, performs a web search using Perplexity's backend, and then uses an LLM to synthesize an answer based on the search results.
 
-| Tool          | Description                                                                                                                      |
-| ------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| **Echo Tool** | Formats and echoes messages with various options. Demonstrates input validation, error handling, and proper response formatting. |
+#### Input Parameters
 
-See the [Echo Tool implementation](src/mcp-server/tools/echoTool/) for detailed usage examples and implementation details.
+| Parameter                  | Type     | Required | Description                                                                                                       |
+| -------------------------- | -------- | -------- | ----------------------------------------------------------------------------------------------------------------- |
+| `query`                    | string   | Yes      | The primary search query or question to be processed by Perplexity                                                |
+| `return_related_questions` | boolean  | No       | When true, instructs the Perplexity model to suggest related questions alongside the main answer (Default: false) |
+| `search_recency_filter`    | string   | No       | Filter search results by timeframe (e.g., 'day', 'week', 'month', 'year')                                         |
+| `search_domain_filter`     | string[] | No       | Limit search to specific domains (e.g., ['wikipedia.org'])                                                        |
+| `showThinking`             | boolean  | No       | Include the model's internal reasoning in the response (Default: false)                                           |
 
-### Resources
+#### Examples
 
-| Resource          | Description                                                                                                                            |
-| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| **Echo Resource** | Returns echo messages based on input parameters. Demonstrates resource registration, URI handling, and consistent response formatting. |
+Basic usage:
 
-See the [Echo Resource implementation](src/mcp-server/resources/echoResource/) for detailed usage examples and implementation details.
+```json
+{
+  "query": "What are the latest developments in quantum computing?"
+}
+```
+
+Advanced usage:
+
+```json
+{
+  "query": "What are the latest developments in quantum computing?",
+  "return_related_questions": true,
+  "search_recency_filter": "month",
+  "search_domain_filter": ["nature.com", "science.org", "arxiv.org"],
+  "showThinking": true
+}
+```
 
 ## Development Guidelines
 
+This project uses the structure and guidelines from the `mcp-ts-template`.
+
 ### Adding a New Tool
 
-1.  **Create Directory**: Create a new directory for your tool under `src/mcp-server/tools/` (e.g., `src/mcp-server/tools/myNewTool/`).
-2.  **Define Logic & Schema**: In a `myNewToolLogic.ts` file:
-    - Define TypeScript interfaces for the tool's input and output.
-    - Define the input validation schema (e.g., using Zod, although this template currently uses `validator` and manual checks).
-    - Implement the core logic function that takes validated input and returns the output.
-3.  **Implement Registration**: In a `registration.ts` file:
-    - Import necessary types, the schema shape, the logic function, `McpServer`, `ErrorHandler`, and `logger`.
-    - Create an `async` function (e.g., `registerMyNewTool`) that accepts the `McpServer` instance.
-    - Inside this function, use `ErrorHandler.tryCatch` to wrap the `server.tool()` call.
-    - Call `server.tool()` with:
-      - The tool name (string).
-      - The input schema's shape (e.g., `MyToolInputSchema.shape`).
-      - An `async` handler function that:
-        - Takes the validated `params`.
-        - Uses `ErrorHandler.tryCatch` to wrap the call to your core logic function.
-        - Formats the result according to the MCP specification (e.g., `{ content: [{ type: "text", text: JSON.stringify(result) }] }`).
-        - Includes appropriate logging.
-4.  **Export Registration**: In an `index.ts` file within your tool's directory, export the registration function (e.g., `export { registerMyNewTool } from './registration.js';`).
-5.  **Register in Server**: In `src/mcp-server/server.ts`, import your registration function and call it, passing the `server` instance (e.g., `await registerMyNewTool(server);`).
+Follow the template's guidelines:
 
-```typescript
-// In src/mcp-server/server.ts:
-// import { registerMyNewTool } from './tools/myNewTool/index.js';
-// ...
-// await registerMyNewTool(server);
-```
+1.  **Create Directory**: `src/mcp-server/tools/yourNewTool/`
+2.  **Define Logic & Schema**: `logic.ts` (Input/Output types, validation schema, core function).
+3.  **Implement Registration**: `registration.ts` (Import logic, schema, use `ErrorHandler.tryCatch` and `server.tool()`).
+4.  **Export Registration**: `index.ts` (Export registration function).
+5.  **Register in Server**: `src/mcp-server/server.ts` (Import and call registration function).
 
 ### Adding a New Resource
 
-1.  **Create Directory**: Create a new directory for your resource under `src/mcp-server/resources/` (e.g., `src/mcp-server/resources/myNewResource/`).
-2.  **Define Logic & Schema**: In a `myNewResourceLogic.ts` file:
-    - Define TypeScript interfaces for any parameters (path or query).
-    - Define the query validation schema if needed (e.g., using Zod, although this template currently uses `validator` and manual checks).
-    - Implement the core logic function that takes the `uri` (URL object) and validated `params` and returns the resource data.
-3.  **Implement Registration**: In a `registration.ts` file:
-    - Import necessary types, schemas, the logic function, `McpServer`, `ResourceTemplate`, `ErrorHandler`, and `logger`.
-    - Create an `async` function (e.g., `registerMyNewResource`) that accepts the `McpServer` instance.
-    - Inside this function, use `ErrorHandler.tryCatch` to wrap the registration process.
-    - Define a `ResourceTemplate` with the URI pattern and any `list` or `complete` operations.
-    - Call `server.resource()` with:
-      - A unique resource registration name (string).
-      - The `ResourceTemplate` instance.
-      - Resource metadata (name, description, mimeType, querySchema, examples).
-      - An `async` handler function that:
-        - Takes the `uri` (URL) and validated `params`.
-        - Uses `ErrorHandler.tryCatch` to wrap the call to your core logic function.
-        - Formats the result according to the MCP specification (e.g., `{ contents: [{ uri: uri.href, text: JSON.stringify(result), mimeType: "application/json" }] }`).
-        - Includes appropriate logging.
-4.  **Export Registration**: In an `index.ts` file within your resource's directory, export the registration function (e.g., `export { registerMyNewResource } from './registration.js';`).
-5.  **Register in Server**: In `src/mcp-server/server.ts`, import your registration function and call it, passing the `server` instance (e.g., `await registerMyNewResource(server);`).
+Resources are not the primary focus of this server, but if needed, follow the template's guidelines:
 
-Example `registration.ts` structure
-
-```typescript
-// In src/mcp-server/server.ts:
-// import { registerMyNewResource } from './resources/myNewResource/index.js';
-// ...
-// await registerMyNewResource(server);
-```
-
-## Future Plans
-
-- **MCP Client Implementation**: Support for creating MCP clients that connect to various AI models
+1.  **Create Directory**: `src/mcp-server/resources/yourNewResource/`
+2.  **Define Logic & Schema**: `logic.ts` (Param types, query schema, core function).
+3.  **Implement Registration**: `registration.ts` (Import logic, schema, define `ResourceTemplate`, use `ErrorHandler.tryCatch` and `server.resource()`).
+4.  **Export Registration**: `index.ts` (Export registration function).
+5.  **Register in Server**: `src/mcp-server/server.ts` (Import and call registration function).
 
 ## License
 

@@ -1,7 +1,7 @@
 {
   "name": "perplexity-mcp-server",
-  "version": "1.0.1",
-  "description": "An MCP server providing tools to interact with the Perplexity AI API, built using the mcp-ts-template.",
+  "version": "1.0.0",
+  "description": "A Perplexity API Model Context Protocol (MCP) server that unlocks Perplexity's search-augmented AI capabilities for LLM agents. Features robust error handling, secure input validation, and transparent reasoning with the showThinking parameter. Built with type safety, modular architecture, and production-ready utilities.",
   "main": "dist/index.js",
   "files": [
     "dist"
@@ -34,10 +34,23 @@
     "MCP",
     "model-context-protocol",
     "perplexity",
+    "perplexity-ai",
+    "mcp-server",
     "AI",
     "LLM",
     "AI-integration",
-    "server"
+    "server",
+    "search-augmented-generation",
+    "SAG",
+    "rate-limiting",
+    "error-handling",
+    "structured-logging",
+    "input-sanitization",
+    "type-safety",
+    "cost-tracking",
+    "API-client",
+    "reasoning",
+    "web-search"
   ],
   "author": "Casey Hand @cyanheads",
   "license": "Apache-2.0"

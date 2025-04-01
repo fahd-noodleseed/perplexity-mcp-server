@@ -44,9 +44,18 @@ export const config = {
     // Example: authRequired: process.env.AUTH_REQUIRED === 'true'
     /** Indicates if authentication is required for server operations. */
     authRequired: false,
-  }
+  },
+  /** Perplexity API Key, loaded from environment variables. */
+  perplexityApiKey: process.env.PERPLEXITY_API_KEY || "",
   // Note: mcpClient configuration is now loaded separately from mcp-config.json
 };
+
+// Add a check for the Perplexity API key after the config object is defined
+if (!config.perplexityApiKey) {
+  logger.warn("PERPLEXITY_API_KEY environment variable is not set. Perplexity API calls will fail.", {
+    keyName: "PERPLEXITY_API_KEY"
+  });
+}
 
 /**
  * The configured logging level for the application.

@@ -1,0 +1,42 @@
+{
+  "name": "mcp-ts-template",
+  "version": "1.0.1",
+  "description": "A beginner-friendly foundation for building Model Context Protocol (MCP) servers (and in the future also clients) with TypeScript. This template provides a comprehensive starting point with production-ready utilities, well-structured code, and working examples for building an MCP server. Copy this repo to kickstart your own MCP server and set your **vibe code** session up for success!",
+  "main": "dist/index.js",
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "clean": "ts-node scripts/clean.ts",
+    "rebuild": "npm run clean && npm run build",
+    "tree": "ts-node --esm scripts/tree.ts",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.8.0",
+    "dotenv": "^16.4.7",
+    "sanitize-html": "^2.15.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.2",
+    "validator": "13.15.0",
+    "winston": "^3.17.0",
+    "winston-daily-rotate-file": "^5.0.0",
+    "@types/node": "^22.13.14",
+    "@types/sanitize-html": "^2.15.0",
+    "@types/validator": "13.12.3"
+  },
+  "keywords": [
+    "typescript",
+    "template",
+    "MCP",
+    "model-context-protocol",
+    "vibe-code",
+    "LLM",
+    "AI-integration",
+    "server"
+  ],
+  "author": "Casey Hand @cyanheads",
+  "license": "Apache-2.0"
+}

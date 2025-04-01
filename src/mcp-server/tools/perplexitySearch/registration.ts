@@ -1,9 +1,9 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"; // Corrected import path based on echoTool
-import { ErrorHandler } from '../../../utils/errorHandler.js';
 import { BaseErrorCode, McpError } from '../../../types-global/errors.js'; // Added McpError
+import { ErrorHandler } from '../../../utils/errorHandler.js';
 import { logger } from '../../../utils/logger.js';
-import { PerplexitySearchInputSchema, executePerplexitySearch, PerplexitySearchInput } from './logic.js';
 import { requestContextService } from '../../../utils/requestContext.js';
+import { executePerplexitySearch, PerplexitySearchInput, PerplexitySearchInputSchema } from './logic.js';
 // Removed zod-to-json-schema import
 
 /**
@@ -22,7 +22,9 @@ export function registerPerplexitySearchTool(server: McpServer): void { // Chang
       // Register the tool using server.tool()
       server.tool(
         toolName,
-        // Pass the raw shape of the Zod schema, like echoTool
+        // Add a clear description of what the tool does
+        "Performs a search-augmented query using the Perplexity API. Takes a natural language query, performs a web search using Perplexity's backend, and uses an LLM to synthesize an answer based on the search results. Optional parameters include filtering by recency or domain, requesting related questions, and showing the model's thinking process.",
+        // Pass the raw shape of the Zod schema
         PerplexitySearchInputSchema.shape,
         // --- Tool Handler ---
         // Params are automatically validated by the SDK against the shape

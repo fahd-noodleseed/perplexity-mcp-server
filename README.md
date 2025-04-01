@@ -4,8 +4,8 @@
 [![Model Context Protocol](https://img.shields.io/badge/MCP-^1.8.0-green.svg)](https://modelcontextprotocol.io/)
 [![Version](https://img.shields.io/badge/Version-1.0.0-blue.svg)]()
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Status](https://img.shields.io/badge/Status-Stable-green.svg)](https://github.com/casey/perplexity-mcp-server/issues) <!-- Assuming repo path, adjust if needed -->
-[![GitHub](https://img.shields.io/github/stars/cyanheads/perplexity-mcp-server?style=social)](https://github.com/cyanheads/perplexity-mcp-server) <!-- Assuming repo path, adjust if needed -->
+[![Status](https://img.shields.io/badge/Status-Stable-green.svg)](https://github.com/cyanheads/perplexity-mcp-server/issues)
+[![GitHub](https://img.shields.io/github/stars/cyanheads/perplexity-mcp-server?style=social)](https://github.com/cyanheads/perplexity-mcp-server)
 
 An MCP server providing tools to interact with the [Perplexity AI API](https://docs.perplexity.ai/docs/getting-started), built using the [mcp-ts-template](https://github.com/cyanheads/mcp-ts-template). This server allows AI agents compatible with the [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) to leverage Perplexity's search-augmented query capabilities. Includes a showThinking parameter to enable reasoning models to show its internal reasoning process.
 

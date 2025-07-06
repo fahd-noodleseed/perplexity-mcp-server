@@ -1,6 +1,6 @@
 # perplexity-mcp-server - Directory Structure
 
-Generated on: 2025-07-06 06:23:35
+Generated on: 2025-07-06 06:34:48
 
 ```
 perplexity-mcp-server
@@ -82,6 +82,7 @@ perplexity-mcp-server
 ├── mcp-config.json.example
 ├── package-lock.json
 ├── package.json
+├── README.md
 ├── repomix.config.json
 └── tsconfig.json
 ```

@@ -1,35 +1,49 @@
-import { z } from 'zod';
-import { config } from '../../../config/index.js'; // Corrected path
-import { perplexityApiService, PerplexityChatCompletionRequest } from '../../../services/index.js'; // Corrected path
-import { BaseErrorCode, McpError } from '../../../types-global/errors.js'; // Corrected path
-import { ErrorHandler } from '../../../utils/errorHandler.js'; // Corrected path
-import { logger } from '../../../utils/logger.js'; // Corrected path
-import { RequestContext, requestContextService } from '../../../utils/requestContext.js'; // Corrected path
-// Removed import of local McpToolResponse
-import { CallToolResult } from '@modelcontextprotocol/sdk/types'; // Import SDK type
+/**
+ * @fileoverview Defines the core logic, schemas, and types for the `perplexity_search` tool.
+ * This tool interfaces with the Perplexity API to provide search-augmented answers.
+ * @module src/mcp-server/tools/perplexitySearch/logic
+ */
 
-// --- Define Valid Models ---
-const ValidPerplexityModels = z.enum([
-  "sonar",
-  "sonar-pro",
-  "sonar-deep-research",
-  "sonar-reasoning-pro",
-  "sonar-reasoning"
-]);
+import { z } from 'zod';
+import { config } from '../../../config/index.js';
+import { perplexityApiService, PerplexityChatCompletionRequest, PerplexityChatCompletionRequestSchema } from '../../../services/index.js';
+import { BaseErrorCode, McpError } from '../../../types-global/errors.js';
+import { logger, RequestContext } from '../../../utils/index.js';
 
 // --- Input Schema Definition ---
 
+/**
+ * Defines the input parameters for the `perplexity_search` tool.
+ */
 export const PerplexitySearchInputSchema = z.object({
-  query: z.string().min(1).describe("The primary search query or question to be processed by Perplexity. This will be used for web search and LLM synthesis."),
-  // model: ValidPerplexityModels.optional().describe(`Optional Perplexity model to use. Defaults to configured value: ${config.perplexityDefaultModel}.`), // Model is now determined solely by config
-  return_related_questions: z.boolean().optional().default(false).describe("When true, instructs the Perplexity model to suggest related questions alongside the main answer, if available."),
-  search_recency_filter: z.string().optional().describe("Optional filter to restrict the underlying web search to results published within a specific timeframe (e.g., 'day', 'week', 'month', 'year') before LLM processing."), // Consider enum if specific values are known and fixed
-  search_domain_filter: z.array(z.string()).optional().describe("Optional list of specific domains (e.g., 'wikipedia.org') to limit the underlying web search to before LLM processing."),
-  showThinking: z.boolean().optional().default(false).describe("When true, the tool's response will include the model's internal reasoning process (if provided by the model, typically in <think> tags) before the final answer. Defaults to false."),
-  // We could add other parameters like temperature, max_tokens here if needed
-});
+  query: z.string().min(1).describe("The natural language query for Perplexity's search-augmented generation."),
+  return_related_questions: z.boolean().optional().default(false).describe("If true, the model will suggest related questions in its response. Defaults to false."),
+  search_recency_filter: z.string().optional().describe("Restricts the web search to a specific timeframe. Accepts 'day', 'week', 'month', 'year'."),
+  search_domain_filter: z.array(z.string()).optional().describe("A list of domains to restrict or exclude from the search. (e.g. ['wikipedia.org', 'arxiv.org'])."),
+  search_after_date_filter: z.string().optional().describe("Filters search results to content published after a specific date (MM/DD/YYYY)."),
+  search_before_date_filter: z.string().optional().describe("Filters search results to content published before a specific date (MM/DD/YYYY)."),
+  search_mode: z.enum(['web', 'academic']).optional().describe("Set to 'academic' to prioritize scholarly sources."),
+  showThinking: z.boolean().optional().default(false).describe("If true, includes the model's internal reasoning in the response. Defaults to false."),
+}).describe("Defines the input parameters for the perplexity_search tool.");
 
+/**
+ * TypeScript type inferred from `PerplexitySearchInputSchema`.
+ */
 export type PerplexitySearchInput = z.infer<typeof PerplexitySearchInputSchema>;
+
+/**
+ * Defines the structure of the successful response from the `perplexitySearchLogic` function.
+ */
+export interface PerplexitySearchResponse {
+  rawResultText: string;
+  responseId: string;
+  modelUsed: string;
+  usage: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+  };
+}
 
 // --- System Prompt ---
 
@@ -48,101 +62,74 @@ const SYSTEM_PROMPT = `You are an advanced AI assistant using the Perplexity eng
 
 /**
  * Executes the Perplexity search logic.
- * @param input - Validated input data.
- * @param parentContext - The context from the calling handler.
- * @returns A promise resolving to the SDK's CallToolResult structure.
+ * @param params - Validated input data.
+ * @param context - The request context for logging and tracing.
+ * @returns A promise resolving to the structured Perplexity API response.
+ * @throws {McpError} If the API request fails or returns an empty response.
  */
-export async function executePerplexitySearch(
-  input: PerplexitySearchInput,
-  parentContext: RequestContext
-): Promise<CallToolResult> { // Use SDK's CallToolResult type
-  const operation = 'executePerplexitySearch';
-  // Create a specific context for this operation, inheriting from the parent
-  const context = requestContextService.createRequestContext({
-    ...parentContext, // Inherit requestId and other parent context details
-    operation: operation,
-    toolName: 'perplexity_search',
-    inputQuery: input.query, // Add specific details for this operation
+export async function perplexitySearchLogic(
+  params: PerplexitySearchInput,
+  context: RequestContext
+): Promise<PerplexitySearchResponse> {
+  const operation = 'perplexitySearchLogic';
+  logger.debug(`[${operation}] Starting Perplexity search logic`, { ...context, toolInput: params });
+
+  // Validate that the configured default model is a valid enum member
+  const modelValidation = PerplexityChatCompletionRequestSchema.shape.model.safeParse(config.perplexityDefaultModel);
+  if (!modelValidation.success) {
+    throw new McpError(
+      BaseErrorCode.CONFIGURATION_ERROR,
+      `Invalid Perplexity default model configured: ${config.perplexityDefaultModel}`,
+      { ...context, error: modelValidation.error }
+    );
+  }
+  const modelToUse = modelValidation.data;
+
+  const requestPayload: PerplexityChatCompletionRequest = {
+    model: modelToUse,
+    messages: [
+      { role: 'system', content: SYSTEM_PROMPT },
+      { role: 'user', content: params.query },
+    ],
+    stream: false,
+    // Pass all relevant, validated parameters directly
+    ...(params.return_related_questions && { return_related_questions: params.return_related_questions }),
+    ...(params.search_recency_filter && { search_recency_filter: params.search_recency_filter }),
+    ...(params.search_domain_filter && { search_domain_filter: params.search_domain_filter }),
+    ...(params.search_after_date_filter && { search_after_date_filter: params.search_after_date_filter }),
+    ...(params.search_before_date_filter && { search_before_date_filter: params.search_before_date_filter }),
+    ...(params.search_mode && { search_mode: params.search_mode }),
+  };
+
+  logger.info(`[${operation}] Calling Perplexity API`, { ...context, model: modelToUse });
+  logger.debug(`[${operation}] API Payload`, { ...context, payload: requestPayload });
+
+  const response = await perplexityApiService.chatCompletion(requestPayload, context);
+
+  const rawResultText = response.choices?.[0]?.message?.content;
+
+  if (!rawResultText) {
+    logger.warning(`[${operation}] Perplexity API returned empty content`, { ...context, responseId: response.id });
+    throw new McpError(
+      BaseErrorCode.SERVICE_UNAVAILABLE,
+      'Perplexity API returned an empty response.',
+      { ...context, responseId: response.id }
+    );
+  }
+
+  const toolResponse: PerplexitySearchResponse = {
+    rawResultText,
+    responseId: response.id,
+    modelUsed: response.model,
+    usage: response.usage,
+  };
+
+  logger.info(`[${operation}] Perplexity search logic completed successfully.`, {
+    ...context,
+    responseId: toolResponse.responseId,
+    model: toolResponse.modelUsed,
+    usage: toolResponse.usage,
   });
 
-  logger.info(`[${operation}] Starting Perplexity search`, context);
-
-  return await ErrorHandler.tryCatch(
-    async () => {
-      const modelToUse = config.perplexityDefaultModel; // Model is now fixed from config
-      const searchContextSize = config.perplexityDefaultSearchContext;
-
-      // Build the request payload, including the new optional parameters
-      const requestPayload: PerplexityChatCompletionRequest = {
-        model: modelToUse,
-        messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
-          { role: 'user', content: input.query },
-        ],
-        web_search_options: {
-          search_context_size: searchContextSize,
-        },
-        stream: false, // Explicitly set stream to false as required by the type
-        // Pass through optional parameters if provided in the input
-        ...(input.return_related_questions !== undefined && { return_related_questions: input.return_related_questions }),
-        ...(input.search_recency_filter && { search_recency_filter: input.search_recency_filter }),
-        ...(input.search_domain_filter && input.search_domain_filter.length > 0 && { search_domain_filter: input.search_domain_filter }),
-        // Add any other fixed parameters here if desired (e.g., temperature: 0.7)
-      };
-
-      logger.debug(`[${operation}] Calling Perplexity API`, { ...context, model: modelToUse, searchContext: searchContextSize, payload: requestPayload });
-
-      const response = await perplexityApiService.chatCompletion(requestPayload, context);
-
-      // Extract the raw response content
-      const rawResultText = response.choices?.[0]?.message?.content;
-
-      if (!rawResultText) {
-        logger.warn(`[${operation}] Perplexity API returned empty content`, { ...context, responseId: response.id });
-        throw new McpError(
-          BaseErrorCode.INTERNAL_ERROR,
-          'Perplexity API returned an empty response.',
-          { ...context, responseId: response.id }
-        );
-      }
-
-      // --- Parse <think> block ---
-      const thinkRegex = /^\s*<think>(.*?)<\/think>\s*(.*)$/s;
-      const match = rawResultText.match(thinkRegex);
-
-      let thinkingContent: string | null = null;
-      let mainContent: string;
-
-      if (match) {
-        thinkingContent = match[1].trim();
-        mainContent = match[2].trim();
-        logger.debug(`[${operation}] Parsed <think> block and main content`, { ...context, responseId: response.id });
-      } else {
-        mainContent = rawResultText.trim();
-        logger.debug(`[${operation}] No <think> block found in response`, { ...context, responseId: response.id });
-      }
-
-      // --- Construct Final Response ---
-      let finalResponseText: string;
-      if (input.showThinking && thinkingContent) {
-        finalResponseText = `--- Thinking ---\n${thinkingContent}\n\n--- Answer ---\n${mainContent}`;
-      } else {
-        finalResponseText = mainContent;
-      }
-
-      logger.info(`[${operation}] Perplexity search completed successfully`, { ...context, responseId: response.id, includedThinking: !!(input.showThinking && thinkingContent) });
-
-      // Return the successful response
-      return {
-        content: [{ type: 'text', text: finalResponseText }],
-      };
-    },
-    {
-      operation: operation,
-      context: context, // Pass the specific context for error logging
-      input: input, // Log sanitized input on error
-      errorCode: BaseErrorCode.INTERNAL_ERROR, // Default error code
-      critical: false,
-    }
-  );
+  return toolResponse;
 }

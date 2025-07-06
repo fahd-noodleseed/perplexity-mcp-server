@@ -1,83 +1,138 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"; // Corrected import path based on echoTool
-import { BaseErrorCode, McpError } from '../../../types-global/errors.js'; // Added McpError
-import { ErrorHandler } from '../../../utils/errorHandler.js';
-import { logger } from '../../../utils/logger.js';
-import { requestContextService } from '../../../utils/requestContext.js';
-import { executePerplexitySearch, PerplexitySearchInput, PerplexitySearchInputSchema } from './logic.js';
-// Removed zod-to-json-schema import
+/**
+ * @fileoverview Handles the registration of the `perplexity_search` tool
+ * with an MCP server instance. This tool interfaces with the Perplexity API.
+ * @module src/mcp-server/tools/perplexitySearch/registration
+ */
+
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
+import { BaseErrorCode, McpError } from '../../../types-global/errors.js';
+import {
+  ErrorHandler,
+  logger,
+  RequestContext,
+  requestContextService,
+} from "../../../utils/index.js";
+import {
+  PerplexitySearchInput,
+  PerplexitySearchInputSchema,
+  perplexitySearchLogic,
+} from "./logic.js";
 
 /**
- * Registers the perplexity_search tool with the MCP server.
- * This tool utilizes the Perplexity API to perform a search-augmented query. It takes a natural language query, performs a web search using Perplexity's backend, and then uses an LLM (configured via environment variable) to synthesize an answer based on the search results. Optional parameters allow filtering the web search by recency or domain before the LLM processes the information.
- * @param server - The McpServer instance.
+ * Registers the 'perplexity_search' tool and its handler with the MCP server.
+ *
+ * @param server - The MCP server instance to register the tool with.
+ * @returns A promise that resolves when tool registration is complete.
  */
-export function registerPerplexitySearchTool(server: McpServer): void { // Changed to sync function based on echoTool
-  const operation = 'registerPerplexitySearchTool';
-  const toolName = 'perplexity_search';
-  // Create a base context for registration logging
-  const registrationContext = requestContextService.createRequestContext({ operation, toolName });
+export const registerPerplexitySearchTool = async (
+  server: McpServer,
+): Promise<void> => {
+  const toolName = "perplexity_search";
+  const toolDescription =
+    "Performs a search-augmented query using the Perplexity Search API. `perplexity_search` takes a natural language query, performs a web search, and uses an LLM to synthesize an answer. Use concise, specific queries for best results; include version information if applicable. Supports filtering by recency, date, domain, and search mode (web or academic). '(Ex. 'What are the latest advancements in quantum computing?')";
 
-  ErrorHandler.tryCatch( // Use sync version for registration
-    () => { // Registration logic is synchronous
-      // Register the tool using server.tool()
+  const registrationContext: RequestContext =
+    requestContextService.createRequestContext({
+      operation: "RegisterTool",
+      toolName: toolName,
+    });
+
+  logger.info(`Registering tool: '${toolName}'`, registrationContext);
+
+  await ErrorHandler.tryCatch(
+    async () => {
       server.tool(
         toolName,
-        // Add a clear description of what the tool does
-        "Performs a search-augmented query using the Perplexity API. Takes a natural language query, performs a web search using Perplexity's backend, and uses an LLM to synthesize an answer based on the search results. Optional parameters include filtering by recency or domain, requesting related questions, and showing the model's thinking process.",
-        // Pass the raw shape of the Zod schema
+        toolDescription,
         PerplexitySearchInputSchema.shape,
-        // --- Tool Handler ---
-        // Params are automatically validated by the SDK against the shape
-        async (params: PerplexitySearchInput) => { // Type params directly, no handlerContext needed here
-          // Create context for this specific tool invocation
-          const handlerContext = requestContextService.createRequestContext({
-            parentContext: registrationContext, // Link to registration context
-            operation: 'HandlePerplexitySearchRequest',
-            toolName: toolName,
-            params: params // Log validated params
-          });
-          logger.debug("Handling perplexity search request", handlerContext);
+        async (
+          params: PerplexitySearchInput,
+          mcpContext: any,
+        ): Promise<CallToolResult> => {
+          const handlerContext: RequestContext =
+            requestContextService.createRequestContext({
+              parentRequestId: registrationContext.requestId,
+              operation: "HandleToolRequest",
+              toolName: toolName,
+              mcpToolContext: mcpContext,
+              input: params,
+            });
 
-          // Wrap the handler logic in tryCatch for robust error handling
-          // No need for separate validation here, SDK handles it based on the shape
-          return await ErrorHandler.tryCatch(
-            async () => {
-              // Delegate the core processing logic, passing the context
-              const response = await executePerplexitySearch(params, handlerContext);
-              logger.debug("Perplexity search tool processed successfully", handlerContext);
-              // Return the response directly as it's already in McpToolResponse format
-              return response;
-            },
-            {
-              // Configuration for the error handler specific to this tool call
-              operation: 'processing perplexity search handler',
-              context: handlerContext, // Pass handler-specific context
-              input: params, // Log input parameters on error
-              // Provide a custom error mapping for more specific error reporting
-              errorMapper: (error) => new McpError(
-                error instanceof McpError ? error.code : BaseErrorCode.INTERNAL_ERROR,
-                `Error processing perplexity search tool: ${error instanceof Error ? error.message : 'Unknown error'}`,
-                { ...handlerContext } // Include context in the McpError
-              )
+          try {
+            const result = await perplexitySearchLogic(params, handlerContext);
+
+            // --- Parse <think> block ---
+            const thinkRegex = /^\s*<think>(.*?)<\/think>\s*(.*)$/s;
+            const match = result.rawResultText.match(thinkRegex);
+
+            let thinkingContent: string | null = null;
+            let mainContent: string;
+
+            if (match) {
+              thinkingContent = match[1].trim();
+              mainContent = match[2].trim();
+            } else {
+              mainContent = result.rawResultText.trim();
             }
-          );
-        }
-      ); // End of server.tool call
 
-      logger.info(`Tool registered successfully: ${toolName}`, registrationContext);
+            // --- Construct Final Response ---
+            let finalResponseText: string;
+            if (params.showThinking && thinkingContent) {
+              finalResponseText = `--- Thinking ---\n${thinkingContent}\n\n--- Answer ---\n${mainContent}`;
+            } else {
+              finalResponseText = mainContent;
+            }
+
+            return {
+              content: [{ type: "text", text: finalResponseText }],
+              isError: false,
+            };
+          } catch (error) {
+            const handledError = ErrorHandler.handleError(error, {
+              operation: "perplexitySearchToolHandler",
+              context: handlerContext,
+              input: params,
+            });
+
+            const mcpError =
+              handledError instanceof McpError
+                ? handledError
+                : new McpError(
+                    BaseErrorCode.INTERNAL_ERROR,
+                    "An unexpected error occurred during perplexity search.",
+                    { originalErrorName: handledError.name },
+                  );
+
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify({
+                    error: {
+                      code: mcpError.code,
+                      message: mcpError.message,
+                      details: mcpError.details,
+                    },
+                  }),
+                },
+              ],
+              isError: true,
+            };
+          }
+        },
+      );
+
+      logger.info(
+        `Tool '${toolName}' registered successfully.`,
+        registrationContext,
+      );
     },
     {
-      // Configuration for the error handler wrapping the entire registration
-      operation: `registering tool ${toolName}`,
-      context: registrationContext, // Context for registration-level errors
-      errorCode: BaseErrorCode.INTERNAL_ERROR, // Default error code for registration failure
-      // Custom error mapping for registration failures
-      errorMapper: (error) => new McpError(
-        error instanceof McpError ? error.code : BaseErrorCode.INTERNAL_ERROR,
-        `Failed to register tool '${toolName}': ${error instanceof Error ? error.message : 'Unknown error'}`,
-        { ...registrationContext } // Include context in the McpError
-      ),
-      critical: true // Mark registration failure as critical
-    }
-  ); // End of ErrorHandler.tryCatch for registration
+      operation: `RegisteringTool_${toolName}`,
+      context: registrationContext,
+      errorCode: BaseErrorCode.INITIALIZATION_FAILED,
+      critical: true,
+    },
+  );
 };

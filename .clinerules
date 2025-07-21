@@ -1,264 +1,210 @@
-# perplexity-mcp-server Developer Cheatsheet
+# `perplexity-mcp-server`: Architectural Standard & Developer Mandate
 
-This cheatsheet provides quick references for common patterns and utilities within the `perplexity-mcp-server` codebase.
+**Effective Date:** 2025-07-21
+**Version:** 3.0
 
-## Core Utilities Integration
+## Preamble
 
-### 1. Logging (`src/utils/logger.ts`)
+This document constitutes the official mandate governing all development practices, architectural patterns, and operational procedures for the `perplexity-mcp-server`. It adapts the `mcp-ts-template` standard and is the single source of truth for ensuring code quality, consistency, and long-term maintainability. Adherence to these standards is not optional.
 
-- **Purpose**: Structured logging for debugging and monitoring. Logs to files in the `logs/` directory.
-- **Usage**: Import the singleton `logger` instance. Pass a `context` object (usually `RequestContext`) for correlation.
+---
+
+## I. Core Architectural Principles
+
+The architecture is founded upon a strict separation of concerns to guarantee modularity, testability, and operational clarity. These principles are non-negotiable.
+
+### 1. The Logic Throws, The Handler Catches
+
+This is the immutable cornerstone of the error-handling and control-flow strategy.
+
+- **Core Logic (`logic.ts`):** This layer's sole responsibility is the execution of business logic. It shall be pure and self-contained. If an operational or validation error occurs, it **must** terminate its execution by **throwing a structured `McpError`**. Logic files shall **not** contain `try...catch` blocks for formatting a final response.
+
+- **Handlers (`registration.ts`):** This layer's responsibility is to interface with the MCP server, invoke core logic, and manage the final response lifecycle. It **must wrap every call** to the logic layer in a `try...catch` block. This is the exclusive location where errors are caught, processed by the `ErrorHandler`, and formatted into a definitive `CallToolResult`.
+
+### 2. Structured, Traceable Operations
+
+Every operation must be fully traceable from initiation to completion via structured logging and context propagation.
+
+- **RequestContext:** Any significant operation shall be initiated by creating a `RequestContext` via `requestContextService.createRequestContext()`. This context, containing a unique `requestId`, **must be passed** as an argument through the entire call stack.
+
+- **Logger:** All logging shall be performed through the centralized `logger` singleton. Every log entry **must include the `RequestContext`** to ensure traceability.
+
+---
+
+## II. Tool Development Workflow
+
+This section mandates the workflow for creating and modifying all tools. Deviation is not permitted.
+
+### A. File and Directory Structure
+
+Each tool shall reside in a dedicated directory within `src/mcp-server/tools/`. The structure is fixed:
+
+- **`toolName/`**
+  - **`index.ts`**: A barrel file that exports the `register...` function from `registration.ts`. No other logic.
+  - **`logic.ts`**: Contains the tool's core business logic. Defines and exports the Zod input/output schemas, all inferred TypeScript types, and the primary logic function.
+  - **`registration.ts`**: Registers the tool with the MCP server. Implements the "Handler" role.
+
+### B. The Canonical Pattern for All Tools
+
+The following pattern, based on the `mcp-ts-template`, is the authoritative implementation and shall be used as the template for all new and refactored tools.
+
+#### **Step 1: Define Schema and Logic (`logic.ts`)**
+
+The `logic.ts` file defines the tool's contract (schemas) and its pure function.
 
 ```typescript
-import { logger } from './src/utils/logger.js';
-import { RequestContext } from './src/utils/requestContext.js'; // Or OperationContext
+/**
+ * @fileoverview Defines the core logic, schemas, and types for the tool.
+ * @module
+ */
+import { z } from "zod";
+import { logger, type RequestContext } from "../../../utils/index.js";
+import { BaseErrorCode, McpError } from "../../../types-global/errors.js";
 
-// Inside a function or handler
-const operationContext: RequestContext = /* ... get or create context ... */;
+// 1. DEFINE Zod input and output schemas.
+// CRITICAL: The .describe() calls are sent to the LLM and must be clear.
+export const ToolInputSchema = z.object({ /* ... */ });
+export const ToolResponseSchema = z.object({ /* ... */ });
 
-logger.info("Processing request", operationContext);
-logger.debug("Detailed step info", { ...operationContext, data: someData });
-logger.warn("Potential issue detected", operationContext);
-logger.error("An error occurred", { ...operationContext, error: err.message });
+// 2. INFER and export TypeScript types.
+export type ToolInput = z.infer<typeof ToolInputSchema>;
+export type ToolResponse = z.infer<typeof ToolResponseSchema>;
+
+/**
+ * 3. IMPLEMENT and export the core logic function.
+ * It must remain pure: its only concerns are its inputs and its return value or thrown error.
+ * @throws {McpError} If the logic encounters an unrecoverable issue.
+ */
+export async function toolLogic(params: ToolInput, context: RequestContext): Promise<ToolResponse> {
+  logger.debug("Executing toolLogic...", { ...context });
+
+  if (/* some failure condition */) {
+    // CRITICAL: Logic layer MUST throw a structured error on failure.
+    throw new McpError(BaseErrorCode.VALIDATION_ERROR, "A specific error message.");
+  }
+
+  // On success, RETURN a structured output object.
+  return { /* ... response data ... */ };
+}
 ```
 
-- **Key Files**:
-  - `src/utils/logger.ts`: Logger implementation.
-  - `logs/`: Directory where log files are stored (`combined.log`, `error.log`, etc.).
+#### **Step 2: Register the Tool and Handle Outcomes (`registration.ts`)**
 
-### 2. Error Handling (`src/types-global/errors.ts`, `src/utils/errorHandler.ts`)
-
-- **Purpose**: Standardized error objects (`McpError`) and centralized handling (`ErrorHandler`).
-- **Usage**:
-  - Use `ErrorHandler.tryCatch` to wrap operations that might fail.
-  - Throw `McpError` for specific, categorized errors using `BaseErrorCode`.
-  - `ErrorHandler` automatically logs errors with context.
+The `registration.ts` file acts as the handler, connecting the logic to the server and managing all outcomes.
 
 ```typescript
-import { ErrorHandler } from './src/utils/errorHandler.js';
-import { McpError, BaseErrorCode } from './src/types-global/errors.js';
-import { RequestContext } from './src/utils/requestContext.js';
+/**
+ * @fileoverview Handles registration and error handling for the tool.
+ * @module
+ */
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import {
+  ErrorHandler,
+  logger,
+  requestContextService,
+} from "../../../utils/index.js";
+import {
+  ToolInput,
+  ToolInputSchema,
+  toolLogic,
+  ToolResponseSchema,
+} from "./logic.js";
 
-async function performTask(input: any, context: RequestContext) {
-  return await ErrorHandler.tryCatch(
-    async () => {
-      if (!input) {
-        throw new McpError(BaseErrorCode.VALIDATION_ERROR, "Input cannot be empty", context);
-      }
-      // ... perform task logic ...
-      const result = await someAsyncOperation(input);
-      return result;
-    },
+/**
+ * Registers the tool with the MCP server instance.
+ */
+export const registerTool = async (server: McpServer): Promise<void> => {
+  const toolName = "your_tool_name";
+
+  server.registerTool(
+    toolName,
     {
-      operation: 'performTask',
-      context: context,
-      input: input, // Input is automatically sanitized for logging
-      errorCode: BaseErrorCode.INTERNAL_ERROR, // Default code if unexpected error occurs
-      critical: false // Or true if failure should halt the process
+      title: "Tool Title for LLM",
+      description: "Concise description of the tool's purpose for the LLM.",
+      inputSchema: ToolInputSchema.shape,
+      outputSchema: ToolResponseSchema.shape, // MANDATORY
+    },
+    async (params: ToolInput) => {
+      const handlerContext = requestContextService.createRequestContext({
+        toolName,
+      });
+
+      try {
+        const result = await toolLogic(params, handlerContext);
+        return {
+          structuredContent: result,
+          content: [
+            { type: "text", text: `Success: ${JSON.stringify(result)}` },
+          ],
+        };
+      } catch (error) {
+        const mcpError = ErrorHandler.handleError(error, {
+          operation: toolName,
+          context: handlerContext,
+          input: params,
+        }) as McpError;
+
+        return {
+          isError: true,
+          content: [{ type: "text", text: mcpError.message }],
+          structuredContent: {
+            code: mcpError.code,
+            message: mcpError.message,
+            details: mcpError.details,
+          },
+        };
+      }
     }
   );
-}
+  logger.info(`Tool '${toolName}' registered successfully.`);
+};
 ```
 
-- **Key Files**:
-  - `src/types-global/errors.ts`: Defines `McpError` and `BaseErrorCode`.
-  - `src/utils/errorHandler.ts`: Provides `ErrorHandler.tryCatch` and `handleError`.
+---
 
-### 3. Request Context (`src/utils/requestContext.ts`)
+## III. `perplexity-mcp-server`: Core Utilities & Cheatsheet
 
-- **Purpose**: Track and correlate operations related to a single request or workflow using a unique `requestId`.
-- **Usage**:
-  - Create context at the beginning of an operation using `requestContextService.createRequestContext`.
-  - Pass the context object down through function calls.
-  - Include the context object when logging or creating errors.
+This section provides quick references for the specific utilities and services within this project.
 
-```typescript
-import { requestContextService, RequestContext } from './src/utils/requestContext.js';
-import { logger } from './src/utils/logger.js';
+### 1. Error Handling (`src/types-global/errors.ts`, `src/utils/internal/errorHandler.ts`)
 
-function handleIncomingRequest(requestData: any) {
-  const context: RequestContext = requestContextService.createRequestContext({
-    operation: 'HandleIncomingRequest',
-    // Add any other relevant initial context
-    initialData: requestData.id
-  });
+- **Purpose**: Standardized error objects (`McpError`) and centralized handling (`ErrorHandler`).
+- **Usage**: The `registration.ts` handler for every tool **must** use `ErrorHandler.handleError` in its `catch` block. The `logic.ts` file **must** throw `McpError` for expected failures.
 
-  logger.info("Received request", context);
-  processSubTask(requestData.payload, context);
-}
+### 2. Request Context & Logging (`src/utils/internal/requestContext.ts`, `src/utils/internal/logger.ts`)
 
-function processSubTask(payload: any, parentContext: RequestContext) {
-  // Create a derived context if needed, or just pass the parent context
-  const subTaskContext = { ...parentContext, subOperation: 'ProcessSubTask' };
-  logger.debug("Processing sub-task", subTaskContext);
-  // ... logic ...
-}
-```
+- **Purpose**: To track, trace, and log every operation with a unique ID.
+- **Usage**: A `RequestContext` **must** be created in the `registration.ts` handler and passed through all subsequent function calls. All logging **must** be done via the `logger` singleton and include the context.
 
-- **Key Files**:
-  - `src/utils/requestContext.ts`: Defines `RequestContext` interface and `requestContextService`.
+### 3. Perplexity Service (`src/services/perplexityApi.ts`)
 
-### 4. ID Generation (`src/utils/idGenerator.ts`)
+- **Purpose**: Encapsulates all interaction with the Perplexity API.
+- **Usage**: The singleton `perplexityApiService` is imported directly into the `logic.ts` file of a tool. It handles API key authentication, request formation, and basic response validation.
 
-- **Purpose**: Generate unique, prefixed IDs for different entity types.
-- **Usage**: Configure prefixes (if needed) and use `idGenerator.generateForEntity`.
+### 4. Cost Tracking (`src/utils/perplexity-utils/costTracker.ts`)
 
-```typescript
-import { idGenerator } from './src/utils/idGenerator.js';
+- **Purpose**: Estimate the cost of Perplexity API calls.
+- **Usage**: After a successful API call in `perplexityApiService`, the `costTracker` is automatically invoked to log the estimated cost. This is not typically called directly from tool logic.
 
-// Configure prefixes (e.g., during initialization)
-idGenerator.setEntityPrefixes({
-  request: 'REQ',
-  session: 'SESS'
-  // Add other entity prefixes as needed
-});
+### 5. ID Generation & Sanitization (`src/utils/security/*`)
 
-// Generate IDs
-const requestId = idGenerator.generateForEntity('request'); // e.g., "REQ_A6B3J0"
-const sessionId = idGenerator.generateForEntity('session', { length: 8 }); // e.g., "SESS_C9D4E1F2"
+- **Purpose**: Provide robust security primitives.
+- **`idGenerator`**: Generates unique, prefixed IDs.
+- **`sanitization`**: Cleans and validates input data. `ErrorHandler` uses this automatically for logging, but it can be used for explicit sanitization in logic if needed.
+- **`rateLimiter`**: Controls the frequency of operations (not yet implemented in handlers, but available).
 
-// Validate IDs
-const isValid = idGenerator.isValid(requestId, 'request'); // true
-```
+---
 
-- **Key Files**:
-  - `src/utils/idGenerator.ts`: `IdGenerator` class and default `idGenerator` instance.
+## IV. Code Quality and Security Mandates
 
-### 5. Sanitization (`src/utils/sanitization.ts`)
+### Code Quality
 
-- **Purpose**: Clean and validate input data (HTML, paths, numbers, URLs, JSON) to prevent security issues and ensure data integrity.
-- **Usage**: Import the singleton `sanitization` instance.
+- **JSDoc:** Every file shall begin with a `@fileoverview` and `@module` block. All exported functions, types, and classes shall have complete JSDoc comments.
+- **LLM-Facing Descriptions:** The tool's `title`, `description`, and all parameter `.describe()` strings in Zod schemas are transmitted directly to the LLM. They must be written with the LLM as the primary audience, being descriptive, concise, and explicit about requirements.
+- **Clarity and Intent:** Code shall be self-documenting. Use explicit and unambiguous names.
+- **Formatting:** All code must be formatted using Prettier (`npm run format`) before commit.
 
-```typescript
-import { sanitization } from './src/utils/sanitization.js';
+### Security
 
-const unsafeHtml = '<script>alert("xss")</script><p>Safe content</p>';
-const safeHtml = sanitization.sanitizeHtml(unsafeHtml); // "<p>Safe content</p>"
-
-const unsafePath = '../../etc/passwd';
-try {
-  // Example: Ensure path stays within a designated directory
-  const safePath = sanitization.sanitizePath(unsafePath, { rootDir: '/app/data' });
-} catch (error) {
-  // Handle McpError (BaseErrorCode.VALIDATION_ERROR) if path is invalid/unsafe
-  logger.error("Invalid path detected", { error: error.message });
-}
-
-const userInput = " 123.45 ";
-const num = sanitization.sanitizeNumber(userInput, 0, 1000); // 123.45 (Clamps if outside range)
-
-// Sanitize objects for logging (removes sensitive fields like passwords, tokens)
-const sensitiveData = { user: 'admin', password: 'pwd', token: 'abc', safeField: 'data' };
-const safeLogData = sanitization.sanitizeForLogging(sensitiveData);
-// safeLogData = { user: 'admin', password: '[REDACTED]', token: '[REDACTED]', safeField: 'data' }
-```
-
-- **Key Files**:
-  - `src/utils/sanitization.ts`: `Sanitization` class and `sanitization` instance.
-
-### 6. Rate Limiter (`src/utils/rateLimiter.ts`)
-
-- **Purpose**: Control the frequency of operations, typically used for external API calls or resource-intensive tasks.
-- **Usage**: Import and use the rate limiter instance (specific usage depends on implementation, likely involves acquiring a permit before proceeding).
-
-```typescript
-// Example (Conceptual - actual usage might differ based on implementation)
-import { rateLimiter } from './src/utils/rateLimiter.js';
-import { logger } from './src/utils/logger.js';
-import { RequestContext } from './src/utils/requestContext.js';
-
-async function makeRateLimitedApiCall(context: RequestContext) {
-  try {
-    await rateLimiter.acquire(); // Wait for permission based on configured rate
-    logger.debug("Rate limit permit acquired, proceeding with API call", context);
-    // ... perform the API call ...
-  } catch (error) {
-    logger.error("Failed to acquire rate limit permit or API call failed", { ...context, error: error.message });
-    // Handle error appropriately
-  } finally {
-    // Release permit if necessary (depends on implementation)
-    // rateLimiter.release();
-  }
-}
-```
-
-- **Key Files**:
-  - `src/utils/rateLimiter.ts`: Rate limiter implementation.
-
-### 7. Cost Tracker (`src/utils/costTracker.ts`)
-
-- **Purpose**: Estimate the cost of Perplexity API calls based on model and token usage. Uses pricing data defined within the utility.
-- **Usage**: Import `costTracker` and call `calculatePerplexityCost`.
-
-```typescript
-import { costTracker } from './src/utils/costTracker.js';
-import { RequestContext } from './src/utils/requestContext.js';
-
-// Inside the tool logic, after a successful API call
-const responseData = { /* ... Perplexity API response ... */ };
-const context: RequestContext = /* ... current context ... */;
-
-const estimatedCost = costTracker.calculatePerplexityCost(
-    responseData.model,
-    responseData.usage,
-    null, // searchMode (currently not passed, defaults to legacy/best-effort)
-    context
-);
-
-if (estimatedCost !== null) {
-    logger.info(`Estimated API call cost: $${estimatedCost}`, { ...context, estimatedCost });
-}
-```
-
-- **Key Files**:
-  - `src/utils/costTracker.ts`: Defines pricing data and `calculatePerplexityCost` function.
-
-## Adding New Features
-
-### Adding a Tool
-
-1.  **Directory**: `src/mcp-server/tools/yourToolName/`
-2.  **Logic (`logic.ts`)**: Define input/output types, validation schema (Zod recommended), and core processing function. Use `RequestContext` and `ErrorHandler`.
-3.  **Registration (`registration.ts`)**: Import logic, schema shape, `McpServer`, `ErrorHandler`. Use `server.tool(name, schemaShape, async handler => { ... })`. Wrap handler logic and registration in `ErrorHandler.tryCatch`.
-4.  **Index (`index.ts`)**: Export registration function.
-5.  **Server (`src/mcp-server/server.ts`)**: Import and call registration function within `registerTools`.
-
-### Adding a Resource
-
-*(Note: This project currently focuses on Tools. Resources are less common but follow a similar pattern if needed.)*
-
-1.  **Directory**: `src/mcp-server/resources/yourResourceName/`
-2.  **Logic (`logic.ts`)**: Define params type, query schema (if needed), and core processing function (takes `uri: URL`, `params`). Use `RequestContext` and `ErrorHandler`.
-3.  **Registration (`registration.ts`)**: Import logic, schema, `McpServer`, `ResourceTemplate`, `ErrorHandler`. Define `ResourceTemplate`. Use `server.resource(regName, template, metadata, async handler => { ... })`. Wrap handler logic and registration in `ErrorHandler.tryCatch`.
-4.  **Index (`index.ts`)**: Export registration function.
-5.  **Server (`src/mcp-server/server.ts`)**: Import and call registration function within `registerResources`.
-
-## Key File Locations
-
-- **Main Entry**: `src/index.ts` (Initializes server, handles signals)
-- **Server Setup**: `src/mcp-server/server.ts` (Creates server instance, registers tools/resources)
-- **Configuration**: `src/config/index.ts` (Loads env vars, package info)
-- **Global Types**: `src/types-global/` (e.g., `errors.ts`, `mcp.ts`, `tool.ts`)
-- **Utilities**: `src/utils/` (e.g., `logger.ts`, `errorHandler.ts`, `requestContext.ts`)
-- **Services**: `src/services/` (e.g., `perplexityApi.ts`)
-- **Tools**: `src/mcp-server/tools/` (Each tool in its subdirectory)
-- **Resources**: `src/mcp-server/resources/` (Each resource in its subdirectory, if any)
-- **Client Example**: *Removed or relocated*
-
-## Available Tools
-
-### `perplexity_search`
-
-- **Purpose**: Performs a search-augmented query using the Perplexity API. It takes a natural language query, performs a web search using Perplexity's backend, and then uses an LLM (configured via environment variable) to synthesize an answer based on the search results.
-- **Environment Variable**: Requires `PERPLEXITY_API_KEY` to be set in the server's environment.
-- **Key Parameters**:
-    - `query` (string, required): The primary search query or question.
-    - `return_related_questions` (boolean, optional, default: false): Whether to suggest related questions.
-    - `search_recency_filter` (string, optional): Filter search results by timeframe (e.g., 'day', 'week').
-    - `search_domain_filter` (array of strings, optional): Limit search to specific domains (e.g., ['wikipedia.org']).
-    - `showThinking` (boolean, optional, default: false): Include the model's internal reasoning in the response.
-    - *Note: The specific Perplexity model used is determined by the server configuration (`config.perplexityDefaultModel`) and is not a direct input parameter.*
-    - *See `src/mcp-server/tools/perplexitySearch/logic.ts` (specifically `PerplexitySearchInputSchema`) for all parameters and validation rules.*
-- **Location**: `src/mcp-server/tools/perplexitySearch/`
-
-Remember to keep this cheatsheet updated as the codebase evolves!
+- **Input Validation:** All tool input is automatically validated by the Zod schema provided during registration.
+- **Secrets Management:** Hardcoding secrets is a direct violation of this standard. All secrets (e.g., `PERPLEXITY_API_KEY`) shall be loaded exclusively from environment variables via the `config` module.

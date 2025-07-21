@@ -1,16 +1,10 @@
 /**
  * @fileoverview Main entry point for the MCP (Model Context Protocol) server.
  * This file orchestrates the server's lifecycle:
- * 1. Initializes the core `McpServer` instance (from `@modelcontextprotocol/sdk`) with its identity and capabilities.
- * 2. Registers available resources and tools, making them discoverable and usable by clients.
- * 3. Selects and starts the appropriate communication transport (stdio or Streamable HTTP)
- *    based on configuration.
+ * 1. Initializes the core `McpServer` instance.
+ * 2. Registers available tools.
+ * 3. Selects and starts the appropriate communication transport.
  * 4. Handles top-level error management during startup.
- *
- * MCP Specification References:
- * - Lifecycle: https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-03-26/basic/lifecycle.mdx
- * - Overview (Capabilities): https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-03-26/basic/index.mdx
- * - Transports: https://github.com/modelcontextprotocol/modelcontextprotocol/blob/main/docs/specification/2025-03-26/basic/transports.mdx
  * @module src/mcp-server/server
  */
 
@@ -19,17 +13,19 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { config, environment } from "../config/index.js";
 import { BaseErrorCode } from "../types-global/errors.js";
 import { ErrorHandler, logger, requestContextService } from "../utils/index.js";
+
+// Import registration functions for all tools (alphabetized)
 import { registerPerplexityDeepResearchTool } from "./tools/perplexityDeepResearch/index.js";
 import { registerPerplexitySearchTool } from "./tools/perplexitySearch/index.js";
+
+// Import transport setup functions
 import { startHttpTransport } from "./transports/httpTransport.js";
 import { connectStdioTransport } from "./transports/stdioTransport.js";
 
 /**
  * Creates and configures a new instance of the `McpServer`.
- *
  * @returns A promise resolving with the configured `McpServer` instance.
- * @throws {McpError} If any resource or tool registration fails.
- * @private
+ * @throws {McpError} If any tool registration fails.
  */
 async function createMcpServerInstance(): Promise<McpServer> {
   const context = requestContextService.createRequestContext({
@@ -56,13 +52,13 @@ async function createMcpServerInstance(): Promise<McpServer> {
 
   await ErrorHandler.tryCatch(
     async () => {
-      logger.debug("Registering resources and tools...", context);
-      await registerPerplexitySearchTool(server);
+      logger.debug("Registering tools...", context);
       await registerPerplexityDeepResearchTool(server);
-      logger.info("Resources and tools registered successfully", context);
+      await registerPerplexitySearchTool(server);
+      logger.info("Tools registered successfully", context);
     },
     {
-      operation: "registerAllCapabilities",
+      operation: "registerAllTools",
       context,
       errorCode: BaseErrorCode.INITIALIZATION_FAILED,
       critical: true,
@@ -73,11 +69,9 @@ async function createMcpServerInstance(): Promise<McpServer> {
 }
 
 /**
- * Selects, sets up, and starts the appropriate MCP transport layer based on configuration.
- *
+ * Selects, sets up, and starts the appropriate MCP transport layer.
  * @returns Resolves with `McpServer` for 'stdio', `http.Server` for 'http', or `void`.
  * @throws {Error} If transport type is unsupported or setup fails.
- * @private
  */
 async function startTransport(): Promise<McpServer | ServerType | void> {
   const transportType = config.mcpTransportType;
@@ -87,12 +81,14 @@ async function startTransport(): Promise<McpServer | ServerType | void> {
   });
   logger.info(`Starting transport: ${transportType}`, context);
 
+  const server = await createMcpServerInstance();
+
   if (transportType === "http") {
-    return startHttpTransport(createMcpServerInstance, context);
+    // Wrap the created server instance in a function to match the expected signature
+    return startHttpTransport(() => Promise.resolve(server), context);
   }
 
   if (transportType === "stdio") {
-    const server = await createMcpServerInstance();
     await connectStdioTransport(server, context);
     return server;
   }
@@ -105,31 +101,27 @@ async function startTransport(): Promise<McpServer | ServerType | void> {
 /**
  * Main application entry point. Initializes and starts the MCP server.
  */
-export async function initializeAndStartServer(): Promise<
-  void | McpServer | ServerType
-> {
+export async function initializeAndStartServer(): Promise<void | McpServer | ServerType> {
   const context = requestContextService.createRequestContext({
     operation: "initializeAndStartServer",
   });
   logger.info("MCP Server initialization sequence started.", context);
   try {
     const result = await startTransport();
-    logger.info(
-      "MCP Server initialization sequence completed successfully.",
-      context,
-    );
+    logger.info("MCP Server initialization sequence completed successfully.", context);
     return result;
   } catch (err) {
+    logger.fatal("Critical error during MCP server initialization.", {
+      ...context,
+      error: err instanceof Error ? err.message : String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    });
     ErrorHandler.handleError(err, {
-      operation: "initializeAndStartServer",
+      operation: "initializeAndStartServer_Catch",
       context: context,
       critical: true,
-      rethrow: false,
     });
-    logger.info(
-      "Exiting process due to critical initialization error.",
-      context,
-    );
+    logger.info("Exiting process due to critical initialization error.", context);
     process.exit(1);
   }
 }

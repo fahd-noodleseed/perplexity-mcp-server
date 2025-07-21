@@ -77,6 +77,12 @@ const ChoiceSchema = z.object({
     delta: z.object({ role: z.string().optional(), content: z.string().optional() }).optional(),
 });
 
+const SearchResultSchema = z.object({
+    title: z.string(),
+    url: z.string().url(),
+    date: z.string().optional(),
+});
+
 const FinalResponsePayloadSchema = z.object({
     id: z.string(),
     model: z.string(),
@@ -84,6 +90,8 @@ const FinalResponsePayloadSchema = z.object({
     usage: UsageSchema,
     object: z.literal('chat.completion'),
     choices: z.array(ChoiceSchema),
+    citations: z.array(z.string().url()).optional(),
+    search_results: z.array(SearchResultSchema).optional(),
 });
 
 export type PerplexityChatCompletionResponse = z.infer<typeof FinalResponsePayloadSchema>;

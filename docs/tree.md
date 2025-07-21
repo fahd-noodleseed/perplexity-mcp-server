@@ -1,12 +1,13 @@
 # perplexity-mcp-server - Directory Structure
 
-Generated on: 2025-07-06 06:34:48
+Generated on: 2025-07-21 15:48:03
 
 ```
 perplexity-mcp-server
 ├── .github
-│   └── workflows
-│       └── publish.yml
+│   ├── workflows
+│   │   └── publish.yml
+│   └── FUNDING.yml
 ├── docs
 │   └── tree.md
 ├── scripts

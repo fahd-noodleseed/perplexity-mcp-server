@@ -25,7 +25,7 @@ export const PerplexitySearchInputSchema = z.object({
 const SearchResultSchema = z.object({
     title: z.string().describe("The title of the search result."),
     url: z.string().url().describe("The URL of the search result."),
-    date: z.string().optional().describe("The publication date of the search result."),
+    date: z.string().nullable().optional().describe("The publication date of the search result. Can be null."),
 });
 
 export const PerplexitySearchResponseSchema = z.object({

@@ -1,6 +1,6 @@
 {
   "name": "perplexity-mcp-server",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "A Perplexity API Model Context Protocol (MCP) server that unlocks Perplexity's search-augmented AI capabilities for LLM agents. Features robust error handling, secure input validation, and transparent reasoning with the showThinking parameter. Built with type safety, modular architecture, and production-ready utilities.",
   "main": "dist/index.js",
   "files": [

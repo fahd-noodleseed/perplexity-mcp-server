@@ -54,8 +54,31 @@ Every operation must create a `RequestContext` via `requestContextService.create
 - Built-in cost tracking and error handling
 
 #### Available Tools:
-- `perplexity_search` - Fast search-augmented queries with filtering options
-- `perplexity_deep_research` - Exhaustive multi-source research with configurable depth
+
+**Two specialized tools optimized for different use cases:**
+
+##### `perplexity_ask` (sonar-pro model)
+- **Purpose**: Comprehensive research and detailed answers from multiple sources
+- **Best for**: Complex questions requiring thorough analysis, detailed explanations, multi-perspective coverage
+- **Model**: Always uses `sonar-pro` for maximum research depth
+- **Use cases**: "What are the latest developments in quantum computing?", "Explain the economic implications of climate change policies"
+
+##### `perplexity_think_and_analyze` (sonar-reasoning-pro model)
+- **Purpose**: Logical reasoning, step-by-step analysis, and structured problem-solving
+- **Best for**: Mathematical problems, code analysis, logical puzzles, systematic thinking
+- **Model**: Always uses `sonar-reasoning-pro` for advanced reasoning capabilities
+- **Use cases**: "Analyze this algorithm's complexity", "Solve this logical puzzle step-by-step", "Debug this code issue"
+
+#### Tool Selection Guide
+
+| Use Case | Tool | Why |
+|----------|------|-----|
+| Research questions | `perplexity_ask` | Multi-source comprehensive coverage |
+| Factual information | `perplexity_ask` | Authoritative sources and citations |
+| Mathematical problems | `perplexity_think_and_analyze` | Step-by-step logical reasoning |
+| Code analysis | `perplexity_think_and_analyze` | Systematic debugging and optimization |
+| Problem-solving | `perplexity_think_and_analyze` | Structured analytical approach |
+| General explanations | `perplexity_ask` | Detailed, well-researched answers |
 
 ### Utility Services
 
@@ -89,6 +112,8 @@ Every operation must create a `RequestContext` via `requestContextService.create
 - `MCP_LOG_LEVEL` - Logging verbosity (debug/info/warn/error, default: info)
 - `MCP_AUTH_MODE` - HTTP authentication method (jwt/oauth, default: jwt)
 - `MCP_AUTH_SECRET_KEY` - JWT secret key (required for HTTP + JWT)
+
+Note: `PERPLEXITY_DEFAULT_MODEL` is no longer used as each tool has a fixed, optimized model.
 
 ## Development Guidelines
 

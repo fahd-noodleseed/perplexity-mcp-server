@@ -1,15 +1,15 @@
 /**
- * @fileoverview Handles registration and error handling for the `perplexity_search` tool.
- * @module src/mcp-server/tools/perplexitySearch/registration
+ * @fileoverview Handles registration and error handling for the `perplexity_ask` tool.
+ * @module src/mcp-server/tools/perplexityAsk/registration
  */
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { ErrorHandler, logger, requestContextService } from "../../../utils/index.js";
 import {
-  PerplexitySearchInput,
-  PerplexitySearchInputSchema,
-  perplexitySearchLogic,
-  PerplexitySearchResponseSchema,
+  PerplexityAskInput,
+  PerplexityAskInputSchema,
+  perplexityAskLogic,
+  PerplexityAskResponseSchema,
 } from "./logic.js";
 import { McpError } from "../../../types-global/errors.js";
 
@@ -17,30 +17,30 @@ import { McpError } from "../../../types-global/errors.js";
  * Registers the 'perplexity_search' tool with the MCP server instance.
  * @param server - The MCP server instance.
  */
-export const registerPerplexitySearchTool = async (server: McpServer): Promise<void> => {
-  const toolName = "perplexity_search";
+export const registerPerplexityAskTool = async (server: McpServer): Promise<void> => {
+  const toolName = "perplexity_ask";
   const toolDescription =
-    "Performs a search-augmented query using the Perplexity Search API. `perplexity_search` takes a natural language query, performs a web search, and uses an LLM to synthesize an answer. Use concise, specific queries for best results; include version information if applicable. Supports filtering by recency, date, domain, and search mode (web or academic). '(Ex. 'What are the latest advancements in quantum computing?')";
+    "Get comprehensive, well-researched answers from multiple sources using Perplexity's sonar-pro model. Best for complex questions requiring detailed analysis and thorough coverage of a topic. Uses multiple high-quality sources to provide authoritative answers. (Ex. 'What are the latest advancements in quantum computing and their commercial applications?')";
 
   server.registerTool(
     toolName,
     {
-      title: "Perplexity Search",
+      title: "Perplexity Ask",
       description: toolDescription,
-      inputSchema: PerplexitySearchInputSchema.shape,
-      outputSchema: PerplexitySearchResponseSchema.shape,
+      inputSchema: PerplexityAskInputSchema.shape,
+      outputSchema: PerplexityAskResponseSchema.shape,
       annotations: {
         readOnlyHint: false,
         openWorldHint: true,
       },
     },
-    async (params: PerplexitySearchInput) => {
+    async (params: PerplexityAskInput) => {
       const handlerContext = requestContextService.createRequestContext({
         toolName,
       });
 
       try {
-        const result = await perplexitySearchLogic(params, handlerContext);
+        const result = await perplexityAskLogic(params, handlerContext);
         
         // --- Parse <think> block ---
         const thinkRegex = /^\s*<think>(.*?)<\/think>\s*(.*)$/s;
@@ -58,9 +58,7 @@ export const registerPerplexitySearchTool = async (server: McpServer): Promise<v
 
         // --- Construct Final Response ---
         let responseText = mainContent;
-        if (params.showThinking && thinkingContent) {
-          responseText = `--- Thinking ---\n${thinkingContent}\n\n--- Answer ---\n${mainContent}`;
-        }
+        // Note: perplexity_ask doesn't support showThinking parameter
         
         if (result.searchResults && result.searchResults.length > 0) {
             const citationText = result.searchResults.map((c, i) => `[${i+1}] ${c.title}: ${c.url}`).join('\n');

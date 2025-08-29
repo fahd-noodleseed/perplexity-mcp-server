@@ -15,8 +15,8 @@ import { BaseErrorCode } from "../types-global/errors.js";
 import { ErrorHandler, logger, requestContextService } from "../utils/index.js";
 
 // Import registration functions for all tools (alphabetized)
-import { registerPerplexityDeepResearchTool } from "./tools/perplexityDeepResearch/index.js";
-import { registerPerplexitySearchTool } from "./tools/perplexitySearch/index.js";
+import { registerPerplexityAskTool } from "./tools/perplexityAsk/index.js";
+import { registerPerplexityThinkAndAnalyzeTool } from "./tools/perplexityThinkAndAnalyze/index.js";
 
 // Import transport setup functions
 import { startHttpTransport } from "./transports/httpTransport.js";
@@ -53,8 +53,8 @@ async function createMcpServerInstance(): Promise<McpServer> {
   await ErrorHandler.tryCatch(
     async () => {
       logger.debug("Registering tools...", context);
-      await registerPerplexityDeepResearchTool(server);
-      await registerPerplexitySearchTool(server);
+      await registerPerplexityAskTool(server);
+      await registerPerplexityThinkAndAnalyzeTool(server);
       logger.info("Tools registered successfully", context);
     },
     {

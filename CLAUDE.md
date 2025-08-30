@@ -12,8 +12,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `npm run tree` - Generate file tree documentation
 
 ### Running via npx
-- `npx perplexity-mcp-server` - Run server directly via npx without installation
-- `npm install -g perplexity-mcp-server && perplexity-mcp-server` - Install globally and run
+- `npx noodle-perplexity-mcp` - Run server directly via npx without installation
+- `npm install -g noodle-perplexity-mcp && noodle-perplexity-mcp` - Install globally and run
 
 ### Project Structure Generation
 - `ts-node --esm scripts/tree.ts` - Generate project structure documentation

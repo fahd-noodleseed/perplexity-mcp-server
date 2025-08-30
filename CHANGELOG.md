@@ -5,10 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2025-08-30
+
+### Changed
+- **Package Name**: Renamed package from `perplexity-mcp-server` to `noodle-perplexity-mcp` for npm publication
+- **Tool Names**: Updated tool implementations to use `perplexity_ask` and `perplexity_think_and_analyze` (replacing the previous `perplexity_search` and `perplexity_deep_research` references in documentation)
+- **CLI Command**: Updated binary name from `perplexity-mcp-server` to `noodle-perplexity-mcp`
+- **Installation**: Added npm installation options with npx support for easier deployment
+- **Documentation**: Updated all references to reflect the new package name and correct tool names
+
 ## [1.2.1] - 2025-07-21
 
 ### Fixed
-- **Schema Validation**: Patched the Zod schema for `perplexity_search` and `perplexity_deep_research` to correctly handle `null` values for the `date` field in search results returned by the Perplexity API. This resolves a critical validation error that caused tool execution to fail.
+- **Schema Validation**: Patched the Zod schema for `perplexity_ask` and `perplexity_think_and_analyze` tools to correctly handle `null` values for the `date` field in search results returned by the Perplexity API. This resolves a critical validation error that caused tool execution to fail.
 
 ## [1.2.0] - 2025-07-21
 
@@ -23,7 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **Architectural Mandate**: Added a new `.clinerules` file that formally documents the project's architectural standards and developer mandates.
-- **Structured Output**: Both `perplexity_search` and `perplexity_deep_research` tools now return a structured output object (`PerplexitySearchResponseSchema`) that includes detailed `searchResults` in addition to the raw text response.
+- **Structured Output**: Both `perplexity_ask` and `perplexity_think_and_analyze` tools now return a structured output object (`PerplexitySearchResponseSchema`) that includes detailed `searchResults` in addition to the raw text response.
 
 ### Fixed
 - **Type Safety**: Improved type safety and code quality across various internal utilities, including the logger, scheduler, and parsers.

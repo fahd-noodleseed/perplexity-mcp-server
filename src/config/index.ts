@@ -32,7 +32,7 @@ try {
 }
 
 const pkgPath = join(projectRoot, "package.json");
-let pkg = { name: 'perplexity-mcp-server', version: '0.0.0' };
+let pkg = { name: 'noodle-perplexity-mcp', version: '0.0.0' };
 
 try {
   pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'));

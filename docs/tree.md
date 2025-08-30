@@ -1,9 +1,9 @@
-# perplexity-mcp-server - Directory Structure
+# noodle-perplexity-mcp - Directory Structure
 
 Generated on: 2025-07-21 15:48:03
 
 ```
-perplexity-mcp-server
+noodle-perplexity-mcp
 ├── .github
 │   ├── workflows
 │   │   └── publish.yml

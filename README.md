@@ -1,11 +1,11 @@
-# Perplexity MCP Server
+# Noodle Perplexity MCP
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-^5.8.3-blue.svg)](https://www.typescriptlang.org/)
 [![Model Context Protocol](https://img.shields.io/badge/MCP%20SDK-^1.15.0-green.svg)](https://modelcontextprotocol.io/)
-[![Version](https://img.shields.io/badge/Version-1.1.0-blue.svg)](./package.json)
+[![Version](https://img.shields.io/badge/Version-1.3.1-blue.svg)](./package.json)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Status](https://img.shields.io/badge/Status-Stable-green.svg)](https://github.com/cyanheads/perplexity-mcp-server/issues)
-[![GitHub](https://img.shields.io/github/stars/cyanheads/perplexity-mcp-server?style=social)](https://github.com/cyanheads/perplexity-mcp-server)
+[![npm](https://img.shields.io/npm/v/noodle-perplexity-mcp)](https://www.npmjs.com/package/noodle-perplexity-mcp)
 
 **Supercharge your AI agents with Perplexity's Search API!**
 
@@ -19,8 +19,8 @@ This server equips your AI with specialized tools to leverage Perplexity's uniqu
 
 | Tool Name                                               | Description                                                                                                                      | Key Features                                                                                                                                                                                                                   |
 | :------------------------------------------------------ | :------------------------------------------------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`perplexity_search`](#perplexity_search)               | Performs a fast, search-augmented query using the Perplexity API. Ideal for quick questions and real-time information retrieval. | - Filter by recency (`day`, `week`, `month`, `year`).<br/>- Filter by domain or date range.<br/>- Prioritize scholarly sources with `academic` mode.<br/>- Optionally include the model's internal reasoning (`showThinking`). |
-| [`perplexity_deep_research`](#perplexity_deep_research) | Conducts an exhaustive, multi-source investigation for complex topics, delivering a detailed report.                             | - Ideal for in-depth analysis and report generation.<br/>- Control research depth and cost with `reasoning_effort` (`low`, `medium`, `high`).                                                                                  |
+| [`perplexity_ask`](#perplexity_ask)                     | Get comprehensive, well-researched answers from multiple sources using Perplexity's sonar-pro model. Best for complex questions requiring detailed analysis. | - Multi-source research coverage.<br/>- Filter by recency, domain, or date range.<br/>- Academic search mode for scholarly sources.<br/>- Optional related questions suggestions. |
+| [`perplexity_think_and_analyze`](#perplexity_think_and_analyze) | Perform logical reasoning and step-by-step analysis using sonar-reasoning-pro model. Best for problem-solving and systematic thinking.                             | - Advanced reasoning capabilities.<br/>- Step-by-step analysis.<br/>- Code analysis and debugging.<br/>- Mathematical problem solving.                                                                                  |
 
 > **Note**: For the deep research tool, I recommend allowing a longer timeout (e.g. 180 seconds) through MCP Clients like Cline. Other clients may time out after 60 seconds, which isn't sufficient for deep research.
 
@@ -35,7 +35,7 @@ This server equips your AI with specialized tools to leverage Perplexity's uniqu
 
 ## Overview
 
-The Perplexity MCP Server acts as a bridge, allowing applications (MCP Clients) that understand the Model Context Protocol (MCP)—like advanced AI assistants (LLMs), IDE extensions, or custom research tools—to interact directly and efficiently with the Perplexity AI API.
+The Noodle Perplexity MCP acts as a bridge, allowing applications (MCP Clients) that understand the Model Context Protocol (MCP)—like advanced AI assistants (LLMs), IDE extensions, or custom research tools—to interact directly and efficiently with the Perplexity AI API.
 
 Instead of complex, one-off API integrations, your tools can leverage this server to:
 
@@ -79,6 +79,27 @@ Leverages the robust utilities provided by the `mcp-ts-template`:
 
 ### Setup
 
+#### Quick Start (Recommended)
+
+Run directly with npx (no installation required):
+
+```bash
+npx noodle-perplexity-mcp
+```
+
+#### Global Installation
+
+Install globally for easy access:
+
+```bash
+npm install -g noodle-perplexity-mcp
+noodle-perplexity-mcp
+```
+
+#### Development Setup
+
+For development or custom builds:
+
 1.  Clone the repository:
 
     ```bash
@@ -120,9 +141,9 @@ Add the following to your MCP client's configuration file (e.g., `cline_mcp_sett
 ```json
 {
   "mcpServers": {
-    "perplexity-mcp-server": {
-      "command": "node",
-      "args": ["/path/to/your/perplexity-mcp-server/dist/index.js"],
+    "noodle-perplexity-mcp": {
+      "command": "npx",
+      "args": ["noodle-perplexity-mcp"],
       "env": {
         "PERPLEXITY_API_KEY": "YOUR_PERPLEXITY_API_KEY_HERE"
       }
@@ -155,10 +176,10 @@ For a detailed file tree, run `npm run tree` or see [docs/tree.md](docs/tree.md)
 
 The Perplexity MCP Server provides two primary tools for interacting with the Perplexity API.
 
-| Tool Name                  | Description                                          | Key Arguments                                                                               |
-| :------------------------- | :--------------------------------------------------- | :------------------------------------------------------------------------------------------ |
-| `perplexity_search`        | Performs a fast, search-augmented query.             | `query`, `search_recency_filter?`, `search_domain_filter?`, `search_mode?`, `showThinking?` |
-| `perplexity_deep_research` | Conducts an exhaustive, multi-source research query. | `query`, `reasoning_effort?`                                                                |
+| Tool Name                    | Description                                          | Key Arguments                                                                               |
+| :--------------------------- | :--------------------------------------------------- | :------------------------------------------------------------------------------------------ |
+| `perplexity_ask`             | Get comprehensive answers from multiple sources.     | `query`, `search_recency_filter?`, `search_domain_filter?`, `search_mode?`, `return_related_questions?` |
+| `perplexity_think_and_analyze` | Perform logical reasoning and step-by-step analysis. | `query`, `search_recency_filter?`, `search_domain_filter?`, `search_mode?`, `showThinking?` |
 
 _Note: All tools support comprehensive error handling and return structured JSON responses._
 

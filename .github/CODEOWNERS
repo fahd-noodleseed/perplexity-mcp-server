@@ -1,0 +1,36 @@
+# CODEOWNERS for noodle-perplexity-mcp
+# This file defines who must review changes to specific files/directories
+# Format: pattern owner1 owner2 ...
+
+# Global owners - review all changes
+* @fahd-noodleseed
+
+# CI/CD and GitHub configuration
+/.github/ @fahd-noodleseed
+.github/workflows/ @fahd-noodleseed
+
+# Package configuration and dependencies
+package.json @fahd-noodleseed
+package-lock.json @fahd-noodleseed
+tsconfig.json @fahd-noodleseed
+
+# Core API and server files
+/src/services/perplexityApi.ts @fahd-noodleseed
+/src/mcp-server/server.ts @fahd-noodleseed
+/src/utils/internal/requestContext.ts @fahd-noodleseed
+/src/utils/internal/errorHandler.ts @fahd-noodleseed
+
+# Security-sensitive files
+/src/utils/security/ @fahd-noodleseed
+*.env* @fahd-noodleseed
+.npmrc @fahd-noodleseed
+
+# Documentation requiring review
+README.md @fahd-noodleseed
+SECURITY.md @fahd-noodleseed
+CLAUDE.md @fahd-noodleseed
+LICENSE @fahd-noodleseed
+
+# Build and distribution
+/dist/ @fahd-noodleseed
+/scripts/ @fahd-noodleseed

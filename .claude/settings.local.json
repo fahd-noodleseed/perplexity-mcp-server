@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__noodle-perplexity-mcp__perplexity_ask",
+      "mcp__perplexity-mcp__perplexity_ask"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

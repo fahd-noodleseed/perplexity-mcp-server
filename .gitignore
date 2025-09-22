@@ -165,3 +165,4 @@ coverage/
 repomix-output*
 mcp-servers.json
 mcp-config.json
+CLAUDE.md

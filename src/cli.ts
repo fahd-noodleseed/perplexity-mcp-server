@@ -9,6 +9,6 @@
 
 // Import and run the main application
 import('./index.js').catch((error) => {
-  console.error('Failed to start Perplexity MCP Server:', error);
+  console.error('Failed to start noodle-perplexity-mcp:', error);
   process.exit(1);
 });

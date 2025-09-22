@@ -2,9 +2,9 @@
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-^5.8.3-blue.svg)](https://www.typescriptlang.org/)
 [![Model Context Protocol](https://img.shields.io/badge/MCP%20SDK-^1.15.0-green.svg)](https://modelcontextprotocol.io/)
-[![Version](https://img.shields.io/badge/Version-1.3.1-blue.svg)](./package.json)
+[![Version](https://img.shields.io/badge/Version-1.3.2-blue.svg)](./package.json)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Status](https://img.shields.io/badge/Status-Stable-green.svg)](https://github.com/cyanheads/perplexity-mcp-server/issues)
+[![Status](https://img.shields.io/badge/Status-Stable-green.svg)](https://github.com/fahd-noodleseed/perplexity-mcp-server/issues)
 [![npm](https://img.shields.io/npm/v/noodle-perplexity-mcp)](https://www.npmjs.com/package/noodle-perplexity-mcp)
 
 **Supercharge your AI agents with Perplexity's Search API!**
@@ -20,9 +20,7 @@ This server equips your AI with specialized tools to leverage Perplexity's uniqu
 | Tool Name                                               | Description                                                                                                                      | Key Features                                                                                                                                                                                                                   |
 | :------------------------------------------------------ | :------------------------------------------------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [`perplexity_ask`](#perplexity_ask)                     | Get comprehensive, well-researched answers from multiple sources using Perplexity's sonar-pro model. Best for complex questions requiring detailed analysis. | - Multi-source research coverage.<br/>- Filter by recency, domain, or date range.<br/>- Academic search mode for scholarly sources.<br/>- Optional related questions suggestions. |
-| [`perplexity_think_and_analyze`](#perplexity_think_and_analyze) | Perform logical reasoning and step-by-step analysis using sonar-reasoning-pro model. Best for problem-solving and systematic thinking.                             | - Advanced reasoning capabilities.<br/>- Step-by-step analysis.<br/>- Code analysis and debugging.<br/>- Mathematical problem solving.                                                                                  |
-
-> **Note**: For the deep research tool, I recommend allowing a longer timeout (e.g. 180 seconds) through MCP Clients like Cline. Other clients may time out after 60 seconds, which isn't sufficient for deep research.
+| [`perplexity_think_and_analyze`](#perplexity_think_and_analyze) | Perform logical reasoning and step-by-step analysis using sonar-reasoning-pro model. Best for problem-solving and systematic thinking.                             | - Advanced reasoning capabilities.<br/>- Step-by-step analysis.<br/>- Code analysis and debugging.<br/>- Mathematical problem solving.<br/>- Optional `showThinking` parameter to expose reasoning process.                                                                                  |
 
 ---
 
@@ -64,7 +62,7 @@ Leverages the robust utilities provided by the `mcp-ts-template`:
 
 ### Perplexity Integration
 
-- **Dual API Support**: Full integration with both the standard Chat Completions API (`perplexity_search`) and the more intensive research models (`perplexity_deep_research`).
+- **Dual Model Support**: Specialized tools using fixed, optimized models - `perplexity_ask` (sonar-pro) for comprehensive research and `perplexity_think_and_analyze` (sonar-reasoning-pro) for logical reasoning.
 - **Advanced Search Control**: Fine-grained control over search parameters, including recency, domain filtering, and academic source prioritization.
 - **Cost Tracking**: A utility to estimate the cost of API calls based on token usage and model, helping manage expenses.
 - **Resilient API Client**: A dedicated service for interacting with the Perplexity API, featuring built-in error handling and request/response logging.
@@ -103,7 +101,7 @@ For development or custom builds:
 1.  Clone the repository:
 
     ```bash
-    git clone https://github.com/cyanheads/perplexity-mcp-server.git
+    git clone https://github.com/fahd-noodleseed/perplexity-mcp-server.git
     cd perplexity-mcp-server
     ```
 
@@ -174,12 +172,12 @@ For a detailed file tree, run `npm run tree` or see [docs/tree.md](docs/tree.md)
 
 ## Tools
 
-The Perplexity MCP Server provides two primary tools for interacting with the Perplexity API.
+The Perplexity MCP Server provides two specialized tools, each optimized with a specific model for different use cases:
 
-| Tool Name                    | Description                                          | Key Arguments                                                                               |
-| :--------------------------- | :--------------------------------------------------- | :------------------------------------------------------------------------------------------ |
-| `perplexity_ask`             | Get comprehensive answers from multiple sources.     | `query`, `search_recency_filter?`, `search_domain_filter?`, `search_mode?`, `return_related_questions?` |
-| `perplexity_think_and_analyze` | Perform logical reasoning and step-by-step analysis. | `query`, `search_recency_filter?`, `search_domain_filter?`, `search_mode?`, `showThinking?` |
+| Tool Name                    | Model Used | Description                                          | Key Arguments                                                                               |
+| :--------------------------- | :--------- | :--------------------------------------------------- | :------------------------------------------------------------------------------------------ |
+| `perplexity_ask`             | sonar-pro  | Get comprehensive, well-researched answers from multiple sources. Best for complex questions requiring detailed analysis and thorough coverage.     | `query`, `search_recency_filter?`, `search_domain_filter?`, `search_mode?`, `return_related_questions?` |
+| `perplexity_think_and_analyze` | sonar-reasoning-pro | Perform logical reasoning and step-by-step analysis. Best for problem-solving, mathematical calculations, code analysis, and systematic thinking. | `query`, `search_recency_filter?`, `search_domain_filter?`, `search_mode?`, `showThinking?` |
 
 _Note: All tools support comprehensive error handling and return structured JSON responses._
 

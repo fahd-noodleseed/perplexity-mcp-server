@@ -2,7 +2,7 @@
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-^5.8.3-blue.svg)](https://www.typescriptlang.org/)
 [![Model Context Protocol](https://img.shields.io/badge/MCP%20SDK-^1.15.0-green.svg)](https://modelcontextprotocol.io/)
-[![Version](https://img.shields.io/badge/Version-1.3.3-blue.svg)](./package.json)
+[![Version](https://img.shields.io/badge/Version-1.4.1-blue.svg)](./package.json)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Status](https://img.shields.io/badge/Status-Stable-green.svg)](https://github.com/fahd-noodleseed/perplexity-mcp-server/issues)
 [![npm](https://img.shields.io/npm/v/noodle-perplexity-mcp)](https://www.npmjs.com/package/noodle-perplexity-mcp)
@@ -21,6 +21,7 @@ This server equips your AI with specialized tools to leverage Perplexity's uniqu
 | :------------------------------------------------------ | :------------------------------------------------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [`perplexity_ask`](#perplexity_ask)                     | Get comprehensive, well-researched answers from multiple sources using Perplexity's sonar-pro model. Best for complex questions requiring detailed analysis. | - Multi-source research coverage.<br/>- Filter by recency, domain, or date range.<br/>- Academic search mode for scholarly sources.<br/>- Optional related questions suggestions. |
 | [`perplexity_think_and_analyze`](#perplexity_think_and_analyze) | Perform logical reasoning and step-by-step analysis using sonar-reasoning-pro model. Best for problem-solving and systematic thinking.                             | - Advanced reasoning capabilities.<br/>- Step-by-step analysis.<br/>- Code analysis and debugging.<br/>- Mathematical problem solving.<br/>- Optional `showThinking` parameter to expose reasoning process.                                                                                  |
+| [`perplexity_deep_research`](#perplexity_deep_research) | Conduct exhaustive, multi-source deep research using sonar-deep-research model. Generates comprehensive 10,000+ word reports with expert-level insights. | - 10-20+ searches per query.<br/>- Reasoning transparency with `<think>` blocks.<br/>- Detailed cost breakdown (6 components).<br/>- Configurable reasoning effort (low/medium/high).<br/>- Citations and search results included. |
 
 ---
 
@@ -62,9 +63,11 @@ Leverages the robust utilities provided by the `mcp-ts-template`:
 
 ### Perplexity Integration
 
-- **Dual Model Support**: Specialized tools using fixed, optimized models - `perplexity_ask` (sonar-pro) for comprehensive research and `perplexity_think_and_analyze` (sonar-reasoning-pro) for logical reasoning.
-- **Advanced Search Control**: Fine-grained control over search parameters, including recency, domain filtering, and academic source prioritization.
-- **Cost Tracking**: A utility to estimate the cost of API calls based on token usage and model, helping manage expenses.
+- **Triple Model Support**: Specialized tools using fixed, optimized models - `perplexity_ask` (sonar-pro) for comprehensive research, `perplexity_think_and_analyze` (sonar-reasoning-pro) for logical reasoning, and `perplexity_deep_research` (sonar-deep-research) for exhaustive multi-source research.
+- **Advanced Domain Filtering**: Powerful domain control with four filtering modes - Allowlist (include only specific domains), Denylist (exclude domains with `-` prefix), URL-level filtering (target specific pages), and SEC filings (special `["sec"]` value). Supports up to 20 domains/URLs per request.
+- **Advanced Search Control**: Fine-grained control over search parameters, including recency filters, date range filtering, and academic source prioritization.
+- **Cost Tracking & Transparency**: Detailed cost breakdown with 6 itemized components (input/output/citation/reasoning tokens, search queries), helping manage expenses and understand API usage.
+- **Reasoning Transparency**: Optional `showThinking` parameter and automatic `<think>` block parsing to expose model reasoning process.
 - **Resilient API Client**: A dedicated service for interacting with the Perplexity API, featuring built-in error handling and request/response logging.
 
 ## Installation
@@ -82,7 +85,7 @@ Leverages the robust utilities provided by the `mcp-ts-template`:
 Run directly with npx (no installation required):
 
 ```bash
-npx noodle-perplexity-mcp
+npx -y noodle-perplexity-mcp
 ```
 
 #### Global Installation
@@ -141,7 +144,7 @@ Add the following to your MCP client's configuration file (e.g., `cline_mcp_sett
   "mcpServers": {
     "noodle-perplexity-mcp": {
       "command": "npx",
-      "args": ["noodle-perplexity-mcp"],
+      "args": ["-y", "noodle-perplexity-mcp"],
       "env": {
         "PERPLEXITY_API_KEY": "YOUR_PERPLEXITY_API_KEY_HERE"
       }
@@ -172,14 +175,94 @@ For a detailed file tree, run `npm run tree` or see [docs/tree.md](docs/tree.md)
 
 ## Tools
 
-The Perplexity MCP Server provides two specialized tools, each optimized with a specific model for different use cases:
+The Perplexity MCP Server provides three specialized tools, each optimized with a specific model for different use cases:
 
 | Tool Name                    | Model Used | Description                                          | Key Arguments                                                                               |
 | :--------------------------- | :--------- | :--------------------------------------------------- | :------------------------------------------------------------------------------------------ |
 | `perplexity_ask`             | sonar-pro  | Get comprehensive, well-researched answers from multiple sources. Best for complex questions requiring detailed analysis and thorough coverage.     | `query`, `search_recency_filter?`, `search_domain_filter?`, `search_mode?`, `return_related_questions?` |
 | `perplexity_think_and_analyze` | sonar-reasoning-pro | Perform logical reasoning and step-by-step analysis. Best for problem-solving, mathematical calculations, code analysis, and systematic thinking. | `query`, `search_recency_filter?`, `search_domain_filter?`, `search_mode?`, `showThinking?` |
+| `perplexity_deep_research` | sonar-deep-research | Conduct exhaustive, multi-source deep research generating comprehensive 10,000+ word reports. Best for academic research, market analysis, and due diligence. | `query`, `reasoning_effort?`, `search_recency_filter?`, `search_domain_filter?`, `search_mode?`, `return_related_questions?` |
 
-_Note: All tools support comprehensive error handling and return structured JSON responses._
+_Note: All tools support comprehensive error handling, advanced domain filtering, and return structured JSON responses with detailed cost tracking._
+
+### Advanced Domain Filtering
+
+All three Perplexity tools support powerful domain filtering via the `search_domain_filter` parameter, enabling precise control over search sources.
+
+#### Four Filtering Modes
+
+**1. Allowlist Mode (Include Only Specific Domains)**
+```json
+{
+  "search_domain_filter": ["nasa.gov", "wikipedia.org", "space.com"]
+}
+```
+- Only searches the specified domains
+- Use simple domain names without `https://` or `www.`
+- Main domain includes all subdomains automatically
+
+**2. Denylist Mode (Exclude Specific Domains)**
+```json
+{
+  "search_domain_filter": ["-pinterest.com", "-reddit.com", "-quora.com"]
+}
+```
+- Excludes specified domains from search results
+- Prefix domain with `-` to exclude
+- Useful for filtering out noise and low-quality sources
+
+**3. URL-Level Filtering (Target Specific Pages)**
+```json
+{
+  "search_domain_filter": [
+    "https://en.wikipedia.org/wiki/Chess",
+    "https://chess.com"
+  ]
+}
+```
+- Use complete URLs with protocol for page-level control
+- Can target specific articles or pages
+- Can also exclude specific pages with `-` prefix
+
+**4. SEC Filings (Special Value)**
+```json
+{
+  "search_domain_filter": ["sec"]
+}
+```
+- Special value `"sec"` searches SEC regulatory filings
+- Includes 10-K (annual), 10-Q (quarterly), and 8-K (current) reports
+- Ideal for financial analysis and due diligence
+
+#### Common Use Cases
+
+**Healthcare Research:**
+```json
+{ "search_domain_filter": ["nih.gov", "who.int", "cdc.gov", "nejm.org"] }
+```
+
+**Finance & SEC Filings:**
+```json
+{ "search_domain_filter": ["sec", "bloomberg.com", "wsj.com", "ft.com"] }
+```
+
+**Academic Research:**
+```json
+{ "search_domain_filter": ["arxiv.org", "scholar.google.com", "pnas.org", "nature.com"] }
+```
+
+**Legal Research:**
+```json
+{ "search_domain_filter": ["justia.com", "findlaw.com", "law.cornell.edu"] }
+```
+
+#### Best Practices
+
+- **Maximum 20 domains/URLs** per request
+- **Cannot mix** allowlist and denylist modes in a single request
+- Use **simple domain names** for broad filtering across entire sites
+- Use **complete URLs** for granular page-level control
+- Test URL accessibility before adding to allowlist
 
 ## Development
 

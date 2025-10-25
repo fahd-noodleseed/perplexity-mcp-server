@@ -14,7 +14,14 @@ export const PerplexityThinkAndAnalyzeInputSchema = z.object({
   query: z.string().min(1).describe("The query requiring logical reasoning, analysis, or step-by-step thinking."),
   return_related_questions: z.boolean().optional().default(false).describe("If true, the model will suggest related questions in its response. Defaults to false."),
   search_recency_filter: z.string().optional().describe("Restricts the web search to a specific timeframe. Accepts 'day', 'week', 'month', 'year'."),
-  search_domain_filter: z.array(z.string()).optional().describe("A list of domains to restrict or exclude from the search. (e.g. ['wikipedia.org', 'arxiv.org'])."),
+  search_domain_filter: z.array(z.string()).max(20).optional().describe(
+    "Filter search results by domain (max 20). " +
+    "ALLOWLIST (include only): ['nasa.gov', 'wikipedia.org'] - use simple domain names without https:// or www. " +
+    "DENYLIST (exclude): ['-pinterest.com', '-reddit.com'] - prefix with '-' to exclude. " +
+    "URL-LEVEL: ['https://example.com/specific-page'] - complete URLs to target specific pages. " +
+    "SPECIAL: ['sec'] - search SEC filings (10-K, 10-Q, 8-K). " +
+    "Cannot mix allowlist and denylist modes. Main domains filter all subdomains automatically."
+  ),
   search_after_date_filter: z.string().optional().describe("Filters search results to content published after a specific date (MM/DD/YYYY)."),
   search_before_date_filter: z.string().optional().describe("Filters search results to content published before a specific date (MM/DD/YYYY)."),
   search_mode: z.enum(['web', 'academic']).optional().describe("Set to 'academic' to prioritize scholarly sources."),

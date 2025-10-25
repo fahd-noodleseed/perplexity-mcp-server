@@ -6,14 +6,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Build and Development
 - `npm run build` - Compile TypeScript to JavaScript in dist/
-- `npm run rebuild` - Clean and rebuild the project
+- `npm run rebuild` - Clean and rebuild the project (removes dist/ and logs/, then rebuilds)
 - `npm run clean` - Remove dist/ and logs/ directories
 - `npm start` - Start the server using stdio transport (default)
 - `npm test` - Run tests (placeholder - tests not yet implemented)
+- `npm run tree` - Generate file tree documentation
 
 ### Running via npx
 - `npx noodle-perplexity-mcp` - Run server directly without installation
 - `npm install -g noodle-perplexity-mcp && noodle-perplexity-mcp` - Install globally and run
+
+### Publishing
+- `npm run prepublishOnly` - Automatically runs rebuild before publishing
 
 ## Core Architecture
 
@@ -47,18 +51,210 @@ Every operation must create a `RequestContext` via `requestContextService.create
 - **Best for**: Complex questions requiring thorough analysis, detailed explanations, multi-perspective coverage
 - **Key Parameters**:
   - `query`: The research question
-  - `searchRecency`: Filter by time (week, month, year, etc.)
-  - `searchDomain`: Limit to specific domain
-  - `isAcademicSearch`: Enable scholarly sources
+  - `search_recency_filter`: Filter by time ('day', 'week', 'month', 'year')
+  - `search_domain_filter`: Array of domains to restrict or exclude (e.g., ['wikipedia.org', 'arxiv.org'])
+  - `search_after_date_filter`: Content published after date (MM/DD/YYYY)
+  - `search_before_date_filter`: Content published before date (MM/DD/YYYY)
+  - `search_mode`: 'web' or 'academic' (prioritize scholarly sources)
+  - `return_related_questions`: Boolean to suggest related questions (default: false)
 
 ### `perplexity_think_and_analyze` (sonar-reasoning-pro model)
 - **Purpose**: Logical reasoning, step-by-step analysis, and structured problem-solving
 - **Best for**: Mathematical problems, code analysis, logical puzzles, systematic thinking
 - **Key Parameters**:
   - `query`: The problem to analyze
-  - `showThinking`: Expose internal reasoning process (default: false)
-  - `searchRecency`: Filter by time
-  - `searchDomain`: Limit to specific domain
+  - `showThinking`: Boolean to expose internal reasoning process (default: false)
+  - `search_recency_filter`: Filter by time ('day', 'week', 'month', 'year')
+  - `search_domain_filter`: Array of domains to restrict or exclude
+  - `search_after_date_filter`: Content published after date (MM/DD/YYYY)
+  - `search_before_date_filter`: Content published before date (MM/DD/YYYY)
+  - `search_mode`: 'web' or 'academic'
+
+### `perplexity_deep_research` (sonar-deep-research model)
+- **Purpose**: Exhaustive, multi-source deep research with expert-level insights and transparent reasoning
+- **Best for**: Academic research, market analysis, competitive intelligence, due diligence, complex questions requiring comprehensive investigation across hundreds of sources
+- **Key Features**:
+  - Conducts 10-20+ searches and synthesizes findings into comprehensive research reports (typically 10,000+ words)
+  - Exposes reasoning process via `<think>` blocks showing research strategy
+  - Returns detailed cost breakdown (input/output/citation/reasoning tokens, search queries)
+  - Provides enhanced search results with snippets and metadata
+  - Supports reasoning_effort parameter to control depth: 'low' (faster/cheaper), 'medium' (balanced), 'high' (most comprehensive)
+- **Key Parameters**:
+  - `query`: The research question or topic for exhaustive multi-source analysis
+  - `reasoning_effort`: 'low', 'medium', or 'high' (default: 'medium') - controls computational depth and thoroughness
+  - `return_related_questions`: Boolean to suggest related questions for further research (default: false)
+  - `search_recency_filter`: Filter by time ('day', 'week', 'month', 'year')
+  - `search_domain_filter`: Array of domains to restrict or exclude (e.g., ['wikipedia.org', 'arxiv.org'])
+  - `search_after_date_filter`: Content published after date (MM/DD/YYYY)
+  - `search_before_date_filter`: Content published before date (MM/DD/YYYY)
+  - `search_mode`: 'web' or 'academic' (prioritize scholarly sources)
+- **Response Includes**:
+  - Comprehensive research report with executive summary and detailed analysis
+  - Research strategy & reasoning (`<think>` blocks)
+  - Citations (array of URLs referenced in the report)
+  - Search results with snippets (up to first 10 displayed)
+  - Cost breakdown (itemized: input/output/citation/reasoning tokens, search queries)
+  - Usage statistics (reasoning tokens, search queries performed, total tokens)
+
+## Advanced Domain Filtering
+
+All three Perplexity tools (`perplexity_ask`, `perplexity_think_and_analyze`, `perplexity_deep_research`) support advanced domain filtering via the `search_domain_filter` parameter. This powerful feature enables you to control exactly which sources are used for search results.
+
+### Filtering Modes
+
+**1. Allowlist Mode** (Include Only Specific Domains)
+```json
+{
+  "search_domain_filter": ["nasa.gov", "wikipedia.org", "space.com"]
+}
+```
+- Only searches the specified domains
+- Use simple domain names without `https://` or `www.`
+- Main domain includes all subdomains automatically (e.g., `nytimes.com` includes `cooking.nytimes.com`)
+
+**2. Denylist Mode** (Exclude Specific Domains)
+```json
+{
+  "search_domain_filter": ["-pinterest.com", "-reddit.com", "-quora.com"]
+}
+```
+- Excludes specified domains from search results
+- Prefix domain with `-` to exclude
+- Useful for filtering out noise and low-quality sources
+
+**3. URL-Level Filtering** (Target or Exclude Specific Pages)
+```json
+{
+  "search_domain_filter": [
+    "https://en.wikipedia.org/wiki/Chess",
+    "https://en.wikipedia.org/wiki/World_Chess_Championship",
+    "https://chess.com"
+  ]
+}
+```
+- Use complete URLs with protocol for page-level control
+- Can target specific articles or pages
+- Can also exclude specific pages: `["-https://example.com/exclude-this-page"]`
+
+**4. SEC Filings** (Special Value)
+```json
+{
+  "search_domain_filter": ["sec"]
+}
+```
+- Special value `"sec"` searches SEC regulatory filings
+- Includes 10-K (annual), 10-Q (quarterly), and 8-K (current) reports
+- Ideal for financial analysis and due diligence
+
+### Best Practices
+
+**Domain vs URL Specification:**
+- Use simple domain names (`example.com`) for broad filtering across entire sites
+- Use complete URLs (`https://example.com/specific-page`) for granular page-level control
+
+**Mode Selection:**
+- Use **allowlist** when you know exactly which trusted sources to use
+- Use **denylist** when you want broad search but need to exclude known noise
+- **Cannot mix** both modes in a single request
+
+**Subdomain Behavior:**
+- Adding a main domain (`nytimes.com`) automatically includes all subdomains (`cooking.nytimes.com`)
+- For subdomain-specific filtering, specify the complete subdomain
+
+**Limits:**
+- Maximum 20 domains or URLs per request
+- Prioritize most authoritative sources when approaching the limit
+
+**URL Accessibility:**
+- Test that URLs in allowlist are publicly accessible
+- Blocked or authentication-required URLs may impact response quality
+
+### Common Use Cases
+
+**Healthcare Research:**
+```json
+{
+  "search_domain_filter": ["nih.gov", "who.int", "cdc.gov", "nejm.org"]
+}
+```
+
+**Finance & SEC Filings:**
+```json
+{
+  "search_domain_filter": ["sec", "bloomberg.com", "wsj.com", "ft.com"]
+}
+```
+
+**Academic Research:**
+```json
+{
+  "search_domain_filter": ["arxiv.org", "scholar.google.com", "pnas.org", "nature.com"]
+}
+```
+
+**Legal Research:**
+```json
+{
+  "search_domain_filter": ["justia.com", "findlaw.com", "law.cornell.edu"]
+}
+```
+
+**Noise Reduction:**
+```json
+{
+  "search_domain_filter": ["-pinterest.com", "-reddit.com", "-quora.com"]
+}
+```
+
+### Examples
+
+**Query with Allowlist:**
+Target only NASA and Wikipedia for space-related research:
+```bash
+curl --request POST \
+  --url https://api.perplexity.ai/chat/completions \
+  --header 'Authorization: Bearer YOUR_API_KEY' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "model": "sonar",
+    "messages": [
+      {"role": "user", "content": "Tell me about the James Webb Space Telescope discoveries."}
+    ],
+    "search_domain_filter": ["nasa.gov", "wikipedia.org", "space.com"]
+  }'
+```
+
+**Query with Denylist:**
+Exclude low-quality sources from renewable energy research:
+```bash
+curl --request POST \
+  --url https://api.perplexity.ai/chat/completions \
+  --header 'Authorization: Bearer YOUR_API_KEY' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "model": "sonar",
+    "messages": [
+      {"role": "user", "content": "What are the latest advancements in renewable energy?"}
+    ],
+    "search_domain_filter": ["-pinterest.com", "-reddit.com", "-quora.com"]
+  }'
+```
+
+**Query with SEC Filings:**
+Research company financial data:
+```bash
+curl --request POST \
+  --url https://api.perplexity.ai/chat/completions \
+  --header 'Authorization: Bearer YOUR_API_KEY' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "model": "sonar-pro",
+    "messages": [
+      {"role": "user", "content": "What are Tesla latest financial results?"}
+    ],
+    "search_domain_filter": ["sec"]
+  }'
+```
 
 ## Core Services
 
@@ -97,6 +293,33 @@ Every operation must create a `RequestContext` via `requestContextService.create
 ### Code Requirements
 - All files must begin with `@fileoverview` and `@module` JSDoc blocks
 - Tool descriptions in Zod schemas are sent to LLMs - write for AI consumption
-- Use TypeScript strict mode and ES module patterns
+- Use TypeScript strict mode and ES module patterns (`"type": "module"` in package.json)
 - Always include RequestContext in logging
 - Follow "Logic Throws, Handler Catches" error pattern
+- Use Zod for all input/output validation and schema definitions
+- Sanitize inputs before logging using `sanitization.sanitizeForLogging()`
+
+## Important Patterns
+
+### Request Context Service
+- Every operation creates a unique `RequestContext` with `requestId` and `timestamp`
+- Pass context through entire call stack for traceability
+- Example: `const context = requestContextService.createRequestContext({ operation: 'toolName' })`
+
+### Error Handling with ErrorHandler
+- Use `ErrorHandler.tryCatch()` for automatic error handling with logging
+- Use `ErrorHandler.handleError()` for manual error processing
+- All errors are transformed to `McpError` with standardized error codes
+- Example:
+  ```typescript
+  return await ErrorHandler.tryCatch(
+    async () => { /* logic */ },
+    { operation: 'operationName', context, input: params }
+  );
+  ```
+
+### Logging Best Practices
+- Use structured logging with context: `logger.info(message, context)`
+- Log levels: `debug`, `info`, `warning`, `error`, `fatal`
+- All logs automatically include `requestId` and `timestamp` from context
+- Logs are written to both console and file (in logs/ directory)

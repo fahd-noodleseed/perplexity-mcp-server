@@ -20,7 +20,7 @@ import { McpError } from "../../../types-global/errors.js";
 export const registerPerplexityAskTool = async (server: McpServer): Promise<void> => {
   const toolName = "perplexity_ask";
   const toolDescription =
-    "Get comprehensive, well-researched answers from multiple sources using Perplexity's sonar-pro model. Best for complex questions requiring detailed analysis and thorough coverage of a topic. Uses multiple high-quality sources to provide authoritative answers. (Ex. 'What are the latest advancements in quantum computing and their commercial applications?')";
+    "[DEFAULT RESEARCH TOOL] Get comprehensive, well-researched answers from multiple sources using Perplexity's sonar-pro model. Use this tool for most research queries, questions requiring current information, fact-finding, explanations, and topics needing authoritative multi-source answers. Cost-effective and suitable for 99% of research needs. (Ex. 'What are the latest advancements in quantum computing?', 'Explain blockchain technology', 'Compare cloud providers')";
 
   server.registerTool(
     toolName,

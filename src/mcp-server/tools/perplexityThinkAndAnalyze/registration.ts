@@ -20,7 +20,7 @@ import { McpError } from "../../../types-global/errors.js";
 export const registerPerplexityThinkAndAnalyzeTool = async (server: McpServer): Promise<void> => {
   const toolName = "perplexity_think_and_analyze";
   const toolDescription =
-    "Perform logical reasoning, analysis, and step-by-step thinking using Perplexity's sonar-reasoning-pro model. Best for complex problem-solving, mathematical calculations, code analysis, logical puzzles, and questions requiring structured thinking. Provides detailed reasoning processes and methodical analysis. (Ex. 'Analyze the algorithmic complexity of this sorting algorithm and suggest optimizations')";
+    "Perform logical reasoning, step-by-step analysis, and structured problem-solving using Perplexity's sonar-reasoning-pro model. Use ONLY for tasks requiring systematic reasoning: mathematical calculations, algorithmic analysis, code debugging, logical puzzles, or problems needing explicit step-by-step thinking. Do NOT use for general factual research - use perplexity_ask instead. (Ex. 'Analyze the time complexity of this sorting algorithm', 'Debug this code logic error', 'Solve this mathematical proof')";
 
   server.registerTool(
     toolName,

@@ -16,6 +16,7 @@ import { ErrorHandler, logger, requestContextService } from "../utils/index.js";
 
 // Import registration functions for all tools (alphabetized)
 import { registerPerplexityAskTool } from "./tools/perplexityAsk/index.js";
+import { registerPerplexityDeepResearchTool } from "./tools/perplexityDeepResearch/index.js";
 import { registerPerplexityThinkAndAnalyzeTool } from "./tools/perplexityThinkAndAnalyze/index.js";
 
 // Import transport setup functions
@@ -54,6 +55,7 @@ async function createMcpServerInstance(): Promise<McpServer> {
     async () => {
       logger.debug("Registering tools...", context);
       await registerPerplexityAskTool(server);
+      await registerPerplexityDeepResearchTool(server);
       await registerPerplexityThinkAndAnalyzeTool(server);
       logger.info("Tools registered successfully", context);
     },

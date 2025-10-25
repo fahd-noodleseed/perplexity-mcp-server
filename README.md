@@ -206,6 +206,15 @@ npm start
 
 This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
 
+## Credits
+
+This project is a derivative work based on the original [Perplexity MCP Server](https://github.com/cyanheads/perplexity-mcp-server) created by [Casey Hand (@cyanheads)](https://github.com/cyanheads).
+
+**Original Author:** Casey Hand (@cyanheads)
+**Current Maintainer:** Fahd Rafi (@fahd-noodleseed)
+
+The original project provided the foundation and architecture. This fork includes significant enhancements including tool refactoring, CLI improvements, and extended functionality. See [NOTICE](NOTICE) for detailed attribution and modifications.
+
 ---
 
 <div align="center">

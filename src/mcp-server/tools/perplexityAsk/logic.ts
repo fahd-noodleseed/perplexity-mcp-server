@@ -12,8 +12,20 @@ import { logger, RequestContext } from '../../../utils/index.js';
 
 
 // 1. DEFINE Zod input and output schemas.
+
+// File attachment schema for multimodal support
+const FileInputSchema = z.object({
+  url: z.string().url().optional().describe("Public URL to the file (documents: PDF, DOC, DOCX, TXT, RTF; images: PNG, JPEG, WEBP, GIF)."),
+  base64: z.string().optional().describe("Base64 encoded file content (without data: prefix). Alternative to URL."),
+  file_name: z.string().optional().describe("Optional file name for better context."),
+}).refine(
+  (data) => data.url || data.base64,
+  { message: "Either 'url' or 'base64' must be provided for each file." }
+).describe("File attachment object. Provide either a public URL or base64 encoded content. Supported formats: PDF, DOC, DOCX, TXT, RTF (documents); PNG, JPEG, WEBP, GIF (images). Max 50MB per file.");
+
 export const PerplexityAskInputSchema = z.object({
   query: z.string().min(1).describe("The natural language query for comprehensive research and analysis."),
+  files: z.array(FileInputSchema).optional().describe("Optional array of file attachments to analyze alongside the query. Combine document/image analysis with web research. Each file needs either 'url' or 'base64'. Supported: PDF, DOC, DOCX, TXT, RTF, PNG, JPEG, WEBP, GIF (max 50MB per file)."),
   return_related_questions: z.boolean().optional().default(false).describe("If true, the model will suggest related questions in its response. Defaults to false."),
   search_recency_filter: z.string().optional().describe("Restricts the web search to a specific timeframe. Accepts 'day', 'week', 'month', 'year'."),
   search_domain_filter: z.array(z.string()).max(20).optional().describe(
@@ -27,7 +39,7 @@ export const PerplexityAskInputSchema = z.object({
   search_after_date_filter: z.string().optional().describe("Filters search results to content published after a specific date (MM/DD/YYYY)."),
   search_before_date_filter: z.string().optional().describe("Filters search results to content published before a specific date (MM/DD/YYYY)."),
   search_mode: z.enum(['web', 'academic']).optional().describe("Set to 'academic' to prioritize scholarly sources."),
-}).describe("Get comprehensive, well-researched answers from multiple sources using Perplexity's sonar-pro model. Best for complex questions requiring detailed analysis and thorough coverage of a topic. Uses multiple high-quality sources to provide authoritative answers. (Ex. 'What are the latest advancements in quantum computing and their commercial applications?')");
+}).describe("Get comprehensive, well-researched answers from multiple sources using Perplexity's sonar-pro model. Supports file attachments (PDFs, documents, images) for multimodal analysis. Best for complex questions requiring detailed analysis, document review, or combining local files with web research. (Ex. 'Analyze this API specification PDF and compare with current best practices', 'What are the latest advancements in quantum computing?')");
 
 const SearchResultSchema = z.object({
     title: z.string().describe("The title of the search result."),
@@ -85,11 +97,80 @@ export async function perplexityAskLogic(
   // Always use sonar-pro for comprehensive research
   const model = 'sonar-pro';
 
+  // Construct user message - multimodal if files present, simple string otherwise
+  let userMessage: any;
+
+  if (params.files && params.files.length > 0) {
+    // Multimodal message with files
+    const contentArray: any[] = [
+      { type: 'text', text: params.query }
+    ];
+
+    // Add each file to the content array
+    for (const file of params.files) {
+      let fileUrl: string;
+
+      if (file.url) {
+        // Use provided URL directly
+        fileUrl = file.url;
+      } else if (file.base64) {
+        // For base64: Determine if image or document based on file_name
+        const fileName = file.file_name?.toLowerCase() || '';
+        const isImage = fileName.endsWith('.png') || fileName.endsWith('.jpg') ||
+                       fileName.endsWith('.jpeg') || fileName.endsWith('.webp') ||
+                       fileName.endsWith('.gif');
+
+        if (isImage) {
+          // Images need data URI format with MIME type
+          let mimeType = 'image/png'; // default
+          if (fileName.endsWith('.jpg') || fileName.endsWith('.jpeg')) mimeType = 'image/jpeg';
+          else if (fileName.endsWith('.webp')) mimeType = 'image/webp';
+          else if (fileName.endsWith('.gif')) mimeType = 'image/gif';
+
+          fileUrl = `data:${mimeType};base64,${file.base64}`;
+        } else {
+          // Documents need raw base64 (no prefix)
+          fileUrl = file.base64;
+        }
+      } else {
+        // Shouldn't happen due to Zod validation, but handle gracefully
+        throw new McpError(
+          BaseErrorCode.VALIDATION_ERROR,
+          'File must have either url or base64',
+          { ...context }
+        );
+      }
+
+      const fileContent: any = {
+        type: 'file_url',
+        file_url: { url: fileUrl }
+      };
+
+      if (file.file_name) {
+        fileContent.file_name = file.file_name;
+      }
+
+      contentArray.push(fileContent);
+    }
+
+    userMessage = { role: 'user', content: contentArray };
+
+    logger.info("Multimodal request with file attachments", {
+      ...context,
+      fileCount: params.files.length,
+      hasBase64: params.files.some(f => f.base64),
+      hasUrls: params.files.some(f => f.url)
+    });
+  } else {
+    // Simple text message (backward compatibility)
+    userMessage = { role: 'user', content: params.query };
+  }
+
   const requestPayload: PerplexityChatCompletionRequest = {
     model,
     messages: [
       { role: 'system', content: SYSTEM_PROMPT },
-      { role: 'user', content: params.query },
+      userMessage,
     ],
     stream: false,
     ...(params.return_related_questions && { return_related_questions: params.return_related_questions }),

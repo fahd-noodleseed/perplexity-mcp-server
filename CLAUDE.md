@@ -51,6 +51,7 @@ Every operation must create a `RequestContext` via `requestContextService.create
 - **Best for**: Complex questions requiring thorough analysis, detailed explanations, multi-perspective coverage
 - **Key Parameters**:
   - `query`: The research question
+  - `files`: **NEW** - Optional array of file attachments (PDFs, documents, images) for multimodal analysis
   - `search_recency_filter`: Filter by time ('day', 'week', 'month', 'year')
   - `search_domain_filter`: Array of domains to restrict or exclude (e.g., ['wikipedia.org', 'arxiv.org'])
   - `search_after_date_filter`: Content published after date (MM/DD/YYYY)
@@ -63,6 +64,7 @@ Every operation must create a `RequestContext` via `requestContextService.create
 - **Best for**: Mathematical problems, code analysis, logical puzzles, systematic thinking
 - **Key Parameters**:
   - `query`: The problem to analyze
+  - `files`: **NEW** - Optional array of file attachments for code analysis, debugging, document review
   - `showThinking`: Boolean to expose internal reasoning process (default: false)
   - `search_recency_filter`: Filter by time ('day', 'week', 'month', 'year')
   - `search_domain_filter`: Array of domains to restrict or exclude
@@ -95,6 +97,137 @@ Every operation must create a `RequestContext` via `requestContextService.create
   - Search results with snippets (up to first 10 displayed)
   - Cost breakdown (itemized: input/output/citation/reasoning tokens, search queries)
   - Usage statistics (reasoning tokens, search queries performed, total tokens)
+
+## File Attachments (Multimodal Support)
+
+The `perplexity_ask` and `perplexity_think_and_analyze` tools support file attachments, enabling multimodal analysis that combines document/image analysis with web research.
+
+### Supported File Formats
+
+**Documents** (max 50MB per file):
+- PDF (.pdf)
+- Word Documents (.doc, .docx)
+- Text Files (.txt)
+- Rich Text Format (.rtf)
+
+**Images**:
+- PNG (.png)
+- JPEG (.jpg, .jpeg)
+- WebP (.webp)
+- GIF (.gif)
+
+### File Input Methods
+
+**1. Public URL**
+```json
+{
+  "query": "Analyze this API specification and compare with current best practices",
+  "files": [
+    {
+      "url": "https://example.com/api-spec.pdf",
+      "file_name": "api-specification.pdf"
+    }
+  ]
+}
+```
+
+**2. Base64 Encoding**
+```json
+{
+  "query": "Review this error screenshot and suggest solutions",
+  "files": [
+    {
+      "base64": "iVBORw0KGgoAAAANSUhEUgA...",
+      "file_name": "error-screenshot.png"
+    }
+  ]
+}
+```
+
+**Note**: For base64 encoding, do NOT include the `data:` prefix - provide only the raw base64 string.
+
+### Common Use Cases
+
+**1. API Documentation Analysis**
+Combine API specifications with web research for implementation guidance:
+```json
+{
+  "query": "Analyze this OpenAPI specification and find best practices for implementing authentication",
+  "files": [{"url": "https://example.com/openapi.json", "file_name": "api-spec.json"}],
+  "search_domain_filter": ["stackoverflow.com", "github.com", "auth0.com"]
+}
+```
+
+**2. Error Debugging**
+Analyze error logs/screenshots alongside web search for solutions:
+```json
+{
+  "query": "Identify the root cause of this error and search for solutions",
+  "files": [{"url": "https://example.com/error-log.txt", "file_name": "application.log"}],
+  "search_recency_filter": "month"
+}
+```
+
+**3. Code Review with Research**
+Review code files and compare with current best practices:
+```json
+{
+  "query": "Review this implementation and compare with modern React patterns",
+  "files": [{"url": "https://example.com/component.tsx", "file_name": "UserDashboard.tsx"}],
+  "search_mode": "academic"
+}
+```
+
+**4. Architecture Diagram Analysis**
+Analyze architecture diagrams alongside pattern research:
+```json
+{
+  "query": "Evaluate this system architecture and suggest improvements based on microservices best practices",
+  "files": [{"url": "https://example.com/architecture.png", "file_name": "current-architecture.png"}],
+  "search_domain_filter": ["martinfowler.com", "aws.amazon.com", "microsoft.com"]
+}
+```
+
+**5. Multiple File Analysis**
+Analyze multiple related files together:
+```json
+{
+  "query": "Compare these API specifications and identify compatibility issues",
+  "files": [
+    {"url": "https://example.com/api-v1.pdf", "file_name": "api-v1.pdf"},
+    {"url": "https://example.com/api-v2.pdf", "file_name": "api-v2.pdf"}
+  ]
+}
+```
+
+### Best Practices
+
+**File Size**:
+- Maximum 50MB per file (API enforced)
+- Larger files may increase processing time
+- For large documents, consider extracting relevant sections
+
+**File Accessibility**:
+- URL files must be publicly accessible (no authentication)
+- Test URLs before using them in requests
+- Use base64 for private/local files
+
+**Combining with Search**:
+- Use file attachments + web research for comprehensive analysis
+- Apply search filters to focus on relevant sources
+- Use `search_mode: 'academic'` for technical documentation analysis
+
+**Error Handling**:
+- Unsupported file formats will return validation errors
+- Inaccessible URLs will fail with clear error messages
+- Invalid base64 will be rejected during validation
+
+### Limitations
+
+- Text-based documents work best; scanned images not supported for text extraction
+- Password-protected files not supported
+- Processing timeout: 60 seconds
+- File attachments not supported for `perplexity_deep_research` (may be added in future)
 
 ## Advanced Domain Filtering
 

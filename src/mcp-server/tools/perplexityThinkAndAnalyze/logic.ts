@@ -10,8 +10,20 @@ import { BaseErrorCode, McpError } from '../../../types-global/errors.js';
 import { logger, RequestContext } from '../../../utils/index.js';
 
 // 1. DEFINE Zod input and output schemas.
+
+// File attachment schema for multimodal support
+const FileInputSchema = z.object({
+  url: z.string().url().optional().describe("Public URL to the file (documents: PDF, DOC, DOCX, TXT, RTF; images: PNG, JPEG, WEBP, GIF)."),
+  base64: z.string().optional().describe("Base64 encoded file content (without data: prefix). Alternative to URL."),
+  file_name: z.string().optional().describe("Optional file name for better context."),
+}).refine(
+  (data) => data.url || data.base64,
+  { message: "Either 'url' or 'base64' must be provided for each file." }
+).describe("File attachment object. Provide either a public URL or base64 encoded content. Supported formats: PDF, DOC, DOCX, TXT, RTF (documents); PNG, JPEG, WEBP, GIF (images). Max 50MB per file.");
+
 export const PerplexityThinkAndAnalyzeInputSchema = z.object({
   query: z.string().min(1).describe("The query requiring logical reasoning, analysis, or step-by-step thinking."),
+  files: z.array(FileInputSchema).optional().describe("Optional array of file attachments to analyze alongside the query. Analyze code files, error logs, diagrams, or documentation while performing systematic reasoning. Each file needs either 'url' or 'base64'. Supported: PDF, DOC, DOCX, TXT, RTF, PNG, JPEG, WEBP, GIF (max 50MB per file)."),
   return_related_questions: z.boolean().optional().default(false).describe("If true, the model will suggest related questions in its response. Defaults to false."),
   search_recency_filter: z.string().optional().describe("Restricts the web search to a specific timeframe. Accepts 'day', 'week', 'month', 'year'."),
   search_domain_filter: z.array(z.string()).max(20).optional().describe(
@@ -26,7 +38,7 @@ export const PerplexityThinkAndAnalyzeInputSchema = z.object({
   search_before_date_filter: z.string().optional().describe("Filters search results to content published before a specific date (MM/DD/YYYY)."),
   search_mode: z.enum(['web', 'academic']).optional().describe("Set to 'academic' to prioritize scholarly sources."),
   showThinking: z.boolean().optional().default(false).describe("If true, includes the model's internal reasoning process in the response. Defaults to false."),
-}).describe("Perform logical reasoning, analysis, and step-by-step thinking using Perplexity's sonar-reasoning-pro model. Best for complex problem-solving, mathematical calculations, code analysis, logical puzzles, and questions requiring structured thinking. Provides detailed reasoning processes and methodical analysis. (Ex. 'Analyze the algorithmic complexity of this sorting algorithm and suggest optimizations')");
+}).describe("Perform logical reasoning, analysis, and step-by-step thinking using Perplexity's sonar-reasoning-pro model. Supports file attachments for code analysis, debugging, and document review. Best for complex problem-solving, mathematical calculations, code analysis, logical puzzles, and questions requiring structured thinking. (Ex. 'Analyze this error log file and identify the root cause', 'Review this algorithm implementation and suggest optimizations')");
 
 const SearchResultSchema = z.object({
     title: z.string().describe("The title of the search result."),
@@ -91,11 +103,80 @@ export async function perplexityThinkAndAnalyzeLogic(
   // Always use sonar-reasoning-pro for analytical thinking
   const model = 'sonar-reasoning-pro';
 
+  // Construct user message - multimodal if files present, simple string otherwise
+  let userMessage: any;
+
+  if (params.files && params.files.length > 0) {
+    // Multimodal message with files
+    const contentArray: any[] = [
+      { type: 'text', text: params.query }
+    ];
+
+    // Add each file to the content array
+    for (const file of params.files) {
+      let fileUrl: string;
+
+      if (file.url) {
+        // Use provided URL directly
+        fileUrl = file.url;
+      } else if (file.base64) {
+        // For base64: Determine if image or document based on file_name
+        const fileName = file.file_name?.toLowerCase() || '';
+        const isImage = fileName.endsWith('.png') || fileName.endsWith('.jpg') ||
+                       fileName.endsWith('.jpeg') || fileName.endsWith('.webp') ||
+                       fileName.endsWith('.gif');
+
+        if (isImage) {
+          // Images need data URI format with MIME type
+          let mimeType = 'image/png'; // default
+          if (fileName.endsWith('.jpg') || fileName.endsWith('.jpeg')) mimeType = 'image/jpeg';
+          else if (fileName.endsWith('.webp')) mimeType = 'image/webp';
+          else if (fileName.endsWith('.gif')) mimeType = 'image/gif';
+
+          fileUrl = `data:${mimeType};base64,${file.base64}`;
+        } else {
+          // Documents need raw base64 (no prefix)
+          fileUrl = file.base64;
+        }
+      } else {
+        // Shouldn't happen due to Zod validation, but handle gracefully
+        throw new McpError(
+          BaseErrorCode.VALIDATION_ERROR,
+          'File must have either url or base64',
+          { ...context }
+        );
+      }
+
+      const fileContent: any = {
+        type: 'file_url',
+        file_url: { url: fileUrl }
+      };
+
+      if (file.file_name) {
+        fileContent.file_name = file.file_name;
+      }
+
+      contentArray.push(fileContent);
+    }
+
+    userMessage = { role: 'user', content: contentArray };
+
+    logger.info("Multimodal request with file attachments", {
+      ...context,
+      fileCount: params.files.length,
+      hasBase64: params.files.some(f => f.base64),
+      hasUrls: params.files.some(f => f.url)
+    });
+  } else {
+    // Simple text message (backward compatibility)
+    userMessage = { role: 'user', content: params.query };
+  }
+
   const requestPayload: PerplexityChatCompletionRequest = {
     model,
     messages: [
       { role: 'system', content: SYSTEM_PROMPT },
-      { role: 'user', content: params.query },
+      userMessage,
     ],
     stream: false,
     ...(params.return_related_questions && { return_related_questions: params.return_related_questions }),

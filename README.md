@@ -179,11 +179,11 @@ The Perplexity MCP Server provides three specialized tools, each optimized with 
 
 | Tool Name                    | Model Used | Description                                          | Key Arguments                                                                               |
 | :--------------------------- | :--------- | :--------------------------------------------------- | :------------------------------------------------------------------------------------------ |
-| `perplexity_ask`             | sonar-pro  | Get comprehensive, well-researched answers from multiple sources. Best for complex questions requiring detailed analysis and thorough coverage.     | `query`, `search_recency_filter?`, `search_domain_filter?`, `search_mode?`, `return_related_questions?` |
-| `perplexity_think_and_analyze` | sonar-reasoning-pro | Perform logical reasoning and step-by-step analysis. Best for problem-solving, mathematical calculations, code analysis, and systematic thinking. | `query`, `search_recency_filter?`, `search_domain_filter?`, `search_mode?`, `showThinking?` |
+| `perplexity_ask`             | sonar-pro  | Get comprehensive, well-researched answers from multiple sources. **Supports file attachments** for multimodal analysis (PDFs, documents, images). Best for complex questions requiring detailed analysis and thorough coverage.     | `query`, `files?`, `search_recency_filter?`, `search_domain_filter?`, `search_mode?`, `return_related_questions?` |
+| `perplexity_think_and_analyze` | sonar-reasoning-pro | Perform logical reasoning and step-by-step analysis. **Supports file attachments** for code analysis, debugging, and document review. Best for problem-solving, mathematical calculations, code analysis, and systematic thinking. | `query`, `files?`, `search_recency_filter?`, `search_domain_filter?`, `search_mode?`, `showThinking?` |
 | `perplexity_deep_research` | sonar-deep-research | Conduct exhaustive, multi-source deep research generating comprehensive 10,000+ word reports. Best for academic research, market analysis, and due diligence. | `query`, `reasoning_effort?`, `search_recency_filter?`, `search_domain_filter?`, `search_mode?`, `return_related_questions?` |
 
-_Note: All tools support comprehensive error handling, advanced domain filtering, and return structured JSON responses with detailed cost tracking._
+_Note: All tools support comprehensive error handling, advanced domain filtering, and return structured JSON responses with detailed cost tracking. `perplexity_ask` and `perplexity_think_and_analyze` now support file attachments (PDF, DOC, DOCX, TXT, RTF, PNG, JPEG, WEBP, GIF) for multimodal analysis._
 
 ### Advanced Domain Filtering
 

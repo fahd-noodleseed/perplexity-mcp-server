@@ -79,7 +79,7 @@ const ChoiceSchema = z.object({
 
 const SearchResultSchema = z.object({
     title: z.string(),
-    url: z.string().url(),
+    url: z.string(), // Allow empty strings for file attachments
     date: z.string().optional(),
 });
 

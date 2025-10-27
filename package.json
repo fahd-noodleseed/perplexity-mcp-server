@@ -1,6 +1,6 @@
 {
   "name": "noodle-perplexity-mcp",
-  "version": "1.5.1",
+  "version": "1.5.2",
   "description": "A Perplexity API Model Context Protocol (MCP) server that unlocks Perplexity's search-augmented AI capabilities for LLM agents. Features robust error handling, secure input validation, transparent reasoning, and multimodal support with file attachments (PDFs, documents, images). Built with type safety, modular architecture, and production-ready utilities.",
   "main": "dist/index.js",
   "files": [

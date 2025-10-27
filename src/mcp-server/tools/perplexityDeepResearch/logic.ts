@@ -32,7 +32,7 @@ export const PerplexityDeepResearchInputSchema = z.object({
 
 const SearchResultSchema = z.object({
     title: z.string().describe("The title of the search result."),
-    url: z.string().url().describe("The URL of the search result."),
+    url: z.string().describe("The URL of the search result (may be empty for file attachments)."),
     date: z.string().nullable().optional().describe("The publication date of the search result. Can be null."),
     last_updated: z.string().nullable().optional().describe("The last update date of the search result. Can be null."),
     snippet: z.string().optional().describe("A relevant text excerpt from the source providing context."),

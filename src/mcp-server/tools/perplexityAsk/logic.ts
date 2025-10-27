@@ -16,8 +16,8 @@ import { logger, RequestContext } from '../../../utils/index.js';
 // File attachment schema for multimodal support
 const FileInputSchema = z.object({
   url: z.string().url().optional().describe("Public URL to the file (documents: PDF, DOC, DOCX, TXT, RTF; images: PNG, JPEG, WEBP, GIF)."),
-  base64: z.string().optional().describe("Base64 encoded file content (without data: prefix). Alternative to URL."),
-  file_name: z.string().optional().describe("Optional file name for better context."),
+  base64: z.string().optional().describe("Base64 encoded file content (without data: prefix - the server will add the correct prefix automatically based on file type). Alternative to URL."),
+  file_name: z.string().optional().describe("Optional file name for better context. Required for base64 files to determine file type (e.g., 'document.pdf', 'image.png')."),
 }).refine(
   (data) => data.url || data.base64,
   { message: "Either 'url' or 'base64' must be provided for each file." }
@@ -43,7 +43,7 @@ export const PerplexityAskInputSchema = z.object({
 
 const SearchResultSchema = z.object({
     title: z.string().describe("The title of the search result."),
-    url: z.string().describe("The URL of the search result (may be base64 for file attachments)."),
+    url: z.string().describe("The URL of the search result (may be empty for file attachments)."),
     date: z.string().nullable().optional().describe("The publication date of the search result. Can be null."),
 });
 
@@ -106,27 +106,39 @@ export async function perplexityAskLogic(
       { type: 'text', text: params.query }
     ];
 
+    // Helper function to detect if file is an image based on extension
+    const isImageFile = (fileName?: string, url?: string): boolean => {
+      const name = (fileName || url || '').toLowerCase();
+      return name.endsWith('.png') || name.endsWith('.jpg') ||
+             name.endsWith('.jpeg') || name.endsWith('.webp') ||
+             name.endsWith('.gif');
+    };
+
+    // Helper function to get MIME type for images
+    const getImageMimeType = (fileName?: string, url?: string): string => {
+      const name = (fileName || url || '').toLowerCase();
+      if (name.endsWith('.jpg') || name.endsWith('.jpeg')) return 'image/jpeg';
+      if (name.endsWith('.webp')) return 'image/webp';
+      if (name.endsWith('.gif')) return 'image/gif';
+      return 'image/png'; // default
+    };
+
     // Add each file to the content array
     for (const file of params.files) {
       let fileUrl: string;
+      let isImage: boolean;
 
       if (file.url) {
         // Use provided URL directly
         fileUrl = file.url;
+        isImage = isImageFile(file.file_name, file.url);
       } else if (file.base64) {
         // For base64: Determine if image or document based on file_name
-        const fileName = file.file_name?.toLowerCase() || '';
-        const isImage = fileName.endsWith('.png') || fileName.endsWith('.jpg') ||
-                       fileName.endsWith('.jpeg') || fileName.endsWith('.webp') ||
-                       fileName.endsWith('.gif');
+        isImage = isImageFile(file.file_name);
 
         if (isImage) {
           // Images need data URI format with MIME type
-          let mimeType = 'image/png'; // default
-          if (fileName.endsWith('.jpg') || fileName.endsWith('.jpeg')) mimeType = 'image/jpeg';
-          else if (fileName.endsWith('.webp')) mimeType = 'image/webp';
-          else if (fileName.endsWith('.gif')) mimeType = 'image/gif';
-
+          const mimeType = getImageMimeType(file.file_name);
           fileUrl = `data:${mimeType};base64,${file.base64}`;
         } else {
           // Documents need raw base64 (no prefix)
@@ -141,12 +153,19 @@ export async function perplexityAskLogic(
         );
       }
 
-      const fileContent: any = {
-        type: 'file_url',
-        file_url: { url: fileUrl }
-      };
+      // Use correct content type based on file type
+      const fileContent: any = isImage
+        ? {
+            type: 'image_url',
+            image_url: { url: fileUrl }
+          }
+        : {
+            type: 'file_url',
+            file_url: { url: fileUrl }
+          };
 
-      if (file.file_name) {
+      // Only add file_name for documents (images don't support this per docs)
+      if (!isImage && file.file_name) {
         fileContent.file_name = file.file_name;
       }
 
@@ -155,9 +174,15 @@ export async function perplexityAskLogic(
 
     userMessage = { role: 'user', content: contentArray };
 
+    // Count images vs documents for logging
+    const imageCount = contentArray.filter(c => c.type === 'image_url').length;
+    const documentCount = contentArray.filter(c => c.type === 'file_url').length;
+
     logger.info("Multimodal request with file attachments", {
       ...context,
       fileCount: params.files.length,
+      imageCount,
+      documentCount,
       hasBase64: params.files.some(f => f.base64),
       hasUrls: params.files.some(f => f.url)
     });

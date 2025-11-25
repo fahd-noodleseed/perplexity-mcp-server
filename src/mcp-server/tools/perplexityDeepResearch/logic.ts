@@ -1,5 +1,5 @@
 /**
- * @fileoverview Defines the core logic, schemas, and types for the `perplexity_deep_research` tool.
+ * @fileoverview Defines the core logic, schemas, and types for the `perplexity_research` tool.
  * This tool interfaces with the Perplexity API to perform exhaustive multi-source research using the sonar-deep-research model.
  * @module src/mcp-server/tools/perplexityDeepResearch/logic
  */

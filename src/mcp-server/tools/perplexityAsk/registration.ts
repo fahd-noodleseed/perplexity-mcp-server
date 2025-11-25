@@ -20,7 +20,7 @@ import { McpError } from "../../../types-global/errors.js";
 export const registerPerplexityAskTool = async (server: McpServer): Promise<void> => {
   const toolName = "perplexity_ask";
   const toolDescription =
-    "[DEFAULT RESEARCH TOOL] Get comprehensive, well-researched answers from multiple sources using Perplexity's sonar-pro model. Use this tool for most research queries, questions requiring current information, fact-finding, explanations, and topics needing authoritative multi-source answers. Cost-effective and suitable for 99% of research needs. (Ex. 'What are the latest advancements in quantum computing?', 'Explain blockchain technology', 'Compare cloud providers')";
+    "[FACTUAL LOOKUP ONLY] Get straightforward factual answers from documentation, library references, and authoritative sources using Perplexity's sonar-pro model. Use ONLY for simple fact-finding: API documentation lookups, library usage examples from docs, configuration references, version compatibility checks, or retrieving existing code snippets from documentation. Do NOT use when you need to generate code, combine multiple concepts, solve problems, or create code samples - use perplexity_reason instead. (Ex. 'What parameters does the useState hook accept?', 'What is the syntax for Python list comprehension?', 'What are the default ports for PostgreSQL?')";
 
   server.registerTool(
     toolName,

@@ -1,5 +1,5 @@
 /**
- * @fileoverview Handles registration and error handling for the `perplexity_deep_research` tool.
+ * @fileoverview Handles registration and error handling for the `perplexity_research` tool.
  * @module src/mcp-server/tools/perplexityDeepResearch/registration
  */
 
@@ -14,18 +14,18 @@ import {
 import { McpError } from "../../../types-global/errors.js";
 
 /**
- * Registers the 'perplexity_deep_research' tool with the MCP server instance.
+ * Registers the 'perplexity_research' tool with the MCP server instance.
  * @param server - The MCP server instance.
  */
 export const registerPerplexityDeepResearchTool = async (server: McpServer): Promise<void> => {
-  const toolName = "perplexity_deep_research";
+  const toolName = "perplexity_research";
   const toolDescription =
-    "[HIGH-COST - REQUIRES EXPLICIT USER REQUEST] Exhaustive multi-source research producing 10,000+ word professional reports (cost: $0.40-$2+ per query, 10x more expensive than perplexity_ask). **DO NOT use automatically or infer need - ONLY when user EXPLICITLY says 'deep research', 'comprehensive research report', 'exhaustive investigation', or specifically requests perplexity deep research.** For regular research questions, always use perplexity_ask instead. Use reasoning_effort parameter to control cost/depth. (Ex. User explicitly says: 'I need a deep research report on the quantum computing industry' or 'Use perplexity deep research to analyze...')";
+    "[HIGH-COST - REQUIRES EXPLICIT USER REQUEST] Exhaustive multi-source research producing 10,000+ word professional reports (cost: $0.40-$2+ per query, 10x more expensive than perplexity_ask). **DO NOT use automatically or infer need - ONLY when user EXPLICITLY says 'deep research', 'comprehensive research report', 'exhaustive investigation', or specifically requests this tool.** For regular research questions, use perplexity_ask. For code generation, use perplexity_reason. (Ex. User explicitly says: 'I need a deep research report on the quantum computing industry' or 'Do exhaustive research on...')";
 
   server.registerTool(
     toolName,
     {
-      title: "Perplexity Deep Research",
+      title: "Perplexity Research",
       description: toolDescription,
       inputSchema: PerplexityDeepResearchInputSchema.shape,
       outputSchema: PerplexityDeepResearchResponseSchema.shape,

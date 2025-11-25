@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { config } from '../config/index.js';
 import { BaseErrorCode, McpError } from '../types-global/errors.js';
 import { costTracker, ErrorHandler, logger, RequestContext, sanitization } from '../utils/index.js';
+import { cacheService, CACHE_TTL } from '../utils/cache/index.js';
 
 // --- Zod Schemas for Validation ---
 
@@ -134,51 +135,117 @@ class PerplexityApiService {
         requestData.stream = false;
     }
 
-    return await ErrorHandler.tryCatch(
+    // Generate cache key from request parameters that affect the response
+    const cacheKey = cacheService.generateCacheKey({
+      model: requestData.model,
+      messages: requestData.messages,
+      search_domain_filter: requestData.search_domain_filter,
+      search_recency_filter: requestData.search_recency_filter,
+      search_after_date_filter: requestData.search_after_date_filter,
+      search_before_date_filter: requestData.search_before_date_filter,
+      search_mode: requestData.search_mode,
+      reasoning_effort: requestData.reasoning_effort,
+      temperature: requestData.temperature,
+      max_tokens: requestData.max_tokens,
+      return_related_questions: requestData.return_related_questions,
+    });
+
+    // Check cache first
+    const cached = cacheService.getCachedResponse(cacheKey);
+    if (cached) {
+      logger.info(`[${operation}] Cache hit - returning cached response`, {
+        ...context,
+        model: cached.model,
+        cacheAge: Date.now() - cached.timestamp,
+        cacheKey: cacheKey.substring(0, 16),
+      });
+      return cached.data as PerplexityChatCompletionResponse;
+    }
+
+    // Use request deduplication to prevent duplicate concurrent calls
+    return await cacheService.deduplicatedRequest(
+      cacheKey,
       async () => {
-        logger.info(`[${operation}] Initiating chat completion request`, { ...context, model: requestData.model });
-        logger.debug(`[${operation}] Request details`, { ...context, input: sanitizedInput });
+        return await ErrorHandler.tryCatch(
+          async () => {
+            logger.info(`[${operation}] Initiating chat completion request`, { ...context, model: requestData.model });
+            logger.debug(`[${operation}] Request details`, { ...context, input: sanitizedInput });
 
-        const response = await this.axiosInstance.post<PerplexityChatCompletionResponse>(
-            '/chat/completions',
-            requestData
+            const response = await this.axiosInstance.post<PerplexityChatCompletionResponse>(
+                '/chat/completions',
+                requestData
+            );
+
+            const finalResponse = response.data;
+
+            logger.info(`[${operation}] Received successful final response`, { ...context, responseId: finalResponse.id });
+            logger.debug(`[${operation}] Final response data`, { ...context, response: finalResponse });
+
+            const apiTier = requestData.reasoning_effort ?? (finalResponse.usage.search_context_size as 'low' | 'medium' | 'high' | undefined);
+
+            const usageForCostTracker = {
+                ...finalResponse.usage,
+                search_queries: finalResponse.usage.num_search_queries,
+            };
+
+            const estimatedCost = costTracker.calculatePerplexityCost(
+              finalResponse.model,
+              usageForCostTracker,
+              apiTier,
+              context
+            );
+
+            if (estimatedCost !== null) {
+              logger.info(`[${operation}] Estimated API call cost: $${estimatedCost.toFixed(6)}`, { ...context, estimatedCost });
+            } else {
+              logger.warning(`[${operation}] Could not estimate cost for model: ${finalResponse.model}`, context);
+            }
+
+            // Determine TTL based on model and recency filter
+            const ttl = this.determineCacheTTL(requestData);
+
+            // Cache the successful response
+            cacheService.setCachedResponse(cacheKey, finalResponse, finalResponse.model, ttl);
+
+            return finalResponse;
+          },
+          {
+            operation: operation,
+            context: context,
+            input: sanitizedInput,
+            errorCode: BaseErrorCode.INTERNAL_ERROR,
+            critical: false,
+          }
         );
-        
-        const finalResponse = response.data;
-
-        logger.info(`[${operation}] Received successful final response`, { ...context, responseId: finalResponse.id });
-        logger.debug(`[${operation}] Final response data`, { ...context, response: finalResponse });
-
-        const apiTier = requestData.reasoning_effort ?? (finalResponse.usage.search_context_size as 'low' | 'medium' | 'high' | undefined);
-        
-        const usageForCostTracker = {
-            ...finalResponse.usage,
-            search_queries: finalResponse.usage.num_search_queries,
-        };
-
-        const estimatedCost = costTracker.calculatePerplexityCost(
-          finalResponse.model,
-          usageForCostTracker,
-          apiTier,
-          context
-        );
-
-        if (estimatedCost !== null) {
-          logger.info(`[${operation}] Estimated API call cost: $${estimatedCost.toFixed(6)}`, { ...context, estimatedCost });
-        } else {
-          logger.warning(`[${operation}] Could not estimate cost for model: ${finalResponse.model}`, context);
-        }
-
-        return finalResponse;
       },
-      {
-        operation: operation,
-        context: context,
-        input: sanitizedInput,
-        errorCode: BaseErrorCode.INTERNAL_ERROR,
-        critical: false,
-      }
+      context
     );
+  }
+
+  /**
+   * Determines the appropriate cache TTL based on request parameters.
+   * Deep research and volatile queries (day filter) get different TTLs.
+   */
+  private determineCacheTTL(requestData: PerplexityChatCompletionRequest): number {
+    // Deep research results are expensive and relatively stable
+    if (requestData.model === 'sonar-deep-research') {
+      return CACHE_TTL.deepResearch;
+    }
+
+    // Volatile queries with day filter need short TTL
+    if (requestData.search_recency_filter === 'last_day' ||
+        requestData.web_search_options?.search_recency_filter === 'last_day') {
+      return CACHE_TTL.volatile;
+    }
+
+    // Week filter gets slightly shorter TTL
+    if (requestData.search_recency_filter === 'last_week' ||
+        requestData.web_search_options?.search_recency_filter === 'last_week') {
+      return CACHE_TTL.general; // 30 min is appropriate
+    }
+
+    // Default to general TTL
+    return CACHE_TTL.general;
   }
 }
 

@@ -16,8 +16,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `npx noodle-perplexity-mcp` - Run server directly without installation
 - `npm install -g noodle-perplexity-mcp && noodle-perplexity-mcp` - Install globally and run
 
-### Publishing
-- `npm run prepublishOnly` - Automatically runs rebuild before publishing
+### Versioning & Releases
+- `npm run release:dry-run` - Test what semantic-release would do (requires GITHUB_TOKEN locally)
+- Publishing is fully automated via semantic-release on push to main
 
 ## Core Architecture
 
@@ -431,6 +432,42 @@ curl --request POST \
 - Follow "Logic Throws, Handler Catches" error pattern
 - Use Zod for all input/output validation and schema definitions
 - Sanitize inputs before logging using `sanitization.sanitizeForLogging()`
+
+## Versioning & Release Process
+
+This repository uses **semantic-release** for fully automated version management. Versions are determined entirely by commit message prefixes.
+
+### CRITICAL: Commit Message Requirements
+
+**All commits MUST use conventional commit format:**
+
+| Prefix | Effect | Example |
+|--------|--------|---------|
+| `feat:` | Minor release (1.5.2 → 1.6.0) | `feat: add file attachments support` |
+| `fix:` | Patch release (1.5.2 → 1.5.3) | `fix: handle null URLs in response` |
+| `feat!:` | Major release (1.5.2 → 2.0.0) | `feat!: redesign API schema` |
+| `perf:` | Patch release | `perf: optimize search query parsing` |
+| `refactor:` | Patch release | `refactor: simplify error handling` |
+| `docs:` | No release | `docs: update README` |
+| `chore:` | No release | `chore: update dependencies` |
+| `ci:` | No release | `ci: fix workflow permissions` |
+| `test:` | No release | `test: add unit tests for parser` |
+
+### NEVER Do These:
+- **Never manually edit** the `version` field in `package.json`
+- **Never manually create** git tags (e.g., `git tag v1.6.0`)
+- **Never run** `npm version` commands
+
+### How Releases Work:
+1. Push commits to `main` with conventional prefixes
+2. GitHub Actions runs build and tests
+3. semantic-release analyzes commits since last release
+4. If releasable commits exist (`feat:`, `fix:`, etc.):
+   - Version is bumped automatically in `package.json`
+   - `CHANGELOG.md` is updated with release notes
+   - Git tag is created (e.g., `v1.6.0`)
+   - Package is published to npm
+   - GitHub Release is created with notes
 
 ## Important Patterns
 

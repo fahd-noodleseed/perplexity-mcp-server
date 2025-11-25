@@ -1,3 +1,9 @@
+## [1.7.0](https://github.com/fahd-noodleseed/perplexity-mcp-server/compare/v1.6.0...v1.7.0) (2025-11-25)
+
+### Features
+
+* rename tools to perplexity_reason and perplexity_research ([#10](https://github.com/fahd-noodleseed/perplexity-mcp-server/issues/10)) ([e9bcc3d](https://github.com/fahd-noodleseed/perplexity-mcp-server/commit/e9bcc3d24f967f55bea295082bb6946615512154))
+
 ## [1.6.0](https://github.com/fahd-noodleseed/perplexity-mcp-server/compare/v1.5.2...v1.6.0) (2025-11-25)
 
 ### Features

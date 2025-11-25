@@ -1,5 +1,5 @@
 /**
- * @fileoverview Handles registration and error handling for the `perplexity_think_and_analyze` tool.
+ * @fileoverview Handles registration and error handling for the `perplexity_reason` tool.
  * @module src/mcp-server/tools/perplexityThinkAndAnalyze/registration
  */
 
@@ -14,18 +14,18 @@ import {
 import { McpError } from "../../../types-global/errors.js";
 
 /**
- * Registers the 'perplexity_think_and_analyze' tool with the MCP server instance.
+ * Registers the 'perplexity_reason' tool with the MCP server instance.
  * @param server - The MCP server instance.
  */
 export const registerPerplexityThinkAndAnalyzeTool = async (server: McpServer): Promise<void> => {
-  const toolName = "perplexity_think_and_analyze";
+  const toolName = "perplexity_reason";
   const toolDescription =
-    "Perform logical reasoning, step-by-step analysis, and structured problem-solving using Perplexity's sonar-reasoning-pro model. Use ONLY for tasks requiring systematic reasoning: mathematical calculations, algorithmic analysis, code debugging, logical puzzles, or problems needing explicit step-by-step thinking. Do NOT use for general factual research - use perplexity_ask instead. (Ex. 'Analyze the time complexity of this sorting algorithm', 'Debug this code logic error', 'Solve this mathematical proof')";
+    "[CODE GENERATION & REASONING] Generate code, combine concepts, and perform step-by-step analysis using Perplexity's sonar-reasoning-pro model. Use this tool whenever you need to: generate code samples, combine multiple libraries/concepts into working code, debug code, analyze algorithms, solve programming problems, or create implementation examples. This is the PRIMARY tool for any task requiring code output or technical reasoning. Do NOT use perplexity_ask for code generation. (Ex. 'Write a React component that fetches data and handles loading states', 'How do I combine Redux with React Query?', 'Debug this async/await code', 'Implement a binary search algorithm')";
 
   server.registerTool(
     toolName,
     {
-      title: "Perplexity Think and Analyze",
+      title: "Perplexity Reason",
       description: toolDescription,
       inputSchema: PerplexityThinkAndAnalyzeInputSchema.shape,
       outputSchema: PerplexityThinkAndAnalyzeResponseSchema.shape,

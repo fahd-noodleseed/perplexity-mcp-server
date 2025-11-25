@@ -48,8 +48,8 @@ Every operation must create a `RequestContext` via `requestContextService.create
 ## Available Tools
 
 ### `perplexity_ask` (sonar-pro model)
-- **Purpose**: Comprehensive research and detailed answers from multiple sources
-- **Best for**: Complex questions requiring thorough analysis, detailed explanations, multi-perspective coverage
+- **Purpose**: Factual lookup from documentation, library references, and authoritative sources
+- **Best for**: Simple fact-finding, API documentation lookups, configuration references, version compatibility checks
 - **Key Parameters**:
   - `query`: The research question
   - `files`: **NEW** - Optional array of file attachments (PDFs, documents, images) for multimodal analysis
@@ -60,11 +60,11 @@ Every operation must create a `RequestContext` via `requestContextService.create
   - `search_mode`: 'web' or 'academic' (prioritize scholarly sources)
   - `return_related_questions`: Boolean to suggest related questions (default: false)
 
-### `perplexity_think_and_analyze` (sonar-reasoning-pro model)
-- **Purpose**: Logical reasoning, step-by-step analysis, and structured problem-solving
-- **Best for**: Mathematical problems, code analysis, logical puzzles, systematic thinking
+### `perplexity_reason` (sonar-reasoning-pro model)
+- **Purpose**: Generate code, combine concepts, and perform step-by-step analysis
+- **Best for**: Code generation, combining multiple libraries/concepts, debugging, algorithm implementation, problem-solving
 - **Key Parameters**:
-  - `query`: The problem to analyze
+  - `query`: The problem to analyze or code to generate
   - `files`: **NEW** - Optional array of file attachments for code analysis, debugging, document review
   - `showThinking`: Boolean to expose internal reasoning process (default: false)
   - `search_recency_filter`: Filter by time ('day', 'week', 'month', 'year')
@@ -73,7 +73,7 @@ Every operation must create a `RequestContext` via `requestContextService.create
   - `search_before_date_filter`: Content published before date (MM/DD/YYYY)
   - `search_mode`: 'web' or 'academic'
 
-### `perplexity_deep_research` (sonar-deep-research model)
+### `perplexity_research` (sonar-deep-research model)
 - **Purpose**: Exhaustive, multi-source deep research with expert-level insights and transparent reasoning
 - **Best for**: Academic research, market analysis, competitive intelligence, due diligence, complex questions requiring comprehensive investigation across hundreds of sources
 - **Key Features**:
@@ -101,7 +101,7 @@ Every operation must create a `RequestContext` via `requestContextService.create
 
 ## File Attachments (Multimodal Support)
 
-The `perplexity_ask` and `perplexity_think_and_analyze` tools support file attachments, enabling multimodal analysis that combines document/image analysis with web research.
+The `perplexity_ask` and `perplexity_reason` tools support file attachments, enabling multimodal analysis that combines document/image analysis with web research.
 
 ### Supported File Formats
 
@@ -228,11 +228,11 @@ Analyze multiple related files together:
 - Text-based documents work best; scanned images not supported for text extraction
 - Password-protected files not supported
 - Processing timeout: 60 seconds
-- File attachments not supported for `perplexity_deep_research` (may be added in future)
+- File attachments not supported for `perplexity_research` (may be added in future)
 
 ## Advanced Domain Filtering
 
-All three Perplexity tools (`perplexity_ask`, `perplexity_think_and_analyze`, `perplexity_deep_research`) support advanced domain filtering via the `search_domain_filter` parameter. This powerful feature enables you to control exactly which sources are used for search results.
+All three Perplexity tools (`perplexity_ask`, `perplexity_reason`, `perplexity_research`) support advanced domain filtering via the `search_domain_filter` parameter. This powerful feature enables you to control exactly which sources are used for search results.
 
 ### Filtering Modes
 

@@ -1,6 +1,6 @@
 /**
- * @fileoverview Defines the core logic, schemas, and types for the `perplexity_think_and_analyze` tool.
- * This tool interfaces with the Perplexity API to provide logical reasoning and analytical thinking using the sonar-reasoning-pro model.
+ * @fileoverview Defines the core logic, schemas, and types for the `perplexity_reason` tool.
+ * This tool interfaces with the Perplexity API to generate code, combine concepts, and perform step-by-step analysis using the sonar-reasoning-pro model.
  * @module src/mcp-server/tools/perplexityThinkAndAnalyze/logic
  */
 

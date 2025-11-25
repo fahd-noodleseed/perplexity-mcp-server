@@ -1,3 +1,13 @@
+## [1.6.0](https://github.com/fahd-noodleseed/perplexity-mcp-server/compare/v1.5.2...v1.6.0) (2025-11-25)
+
+### Features
+
+* add response caching and automated releases ([1aa057e](https://github.com/fahd-noodleseed/perplexity-mcp-server/commit/1aa057ec0827c389fb5723748b82c455a6ee1cbd))
+
+### Bug Fixes
+
+* add missing conventional-changelog-conventionalcommits dependency ([7044392](https://github.com/fahd-noodleseed/perplexity-mcp-server/commit/704439272321501462f96c3efcc4e55a6b52afb9))
+
 # Changelog
 
 All notable changes to this project will be documented in this file.

@@ -13,6 +13,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { config, environment } from "../config/index.js";
 import { BaseErrorCode } from "../types-global/errors.js";
 import { ErrorHandler, logger, requestContextService } from "../utils/index.js";
+import { cacheService } from "../utils/cache/index.js";
 
 // Import registration functions for all tools (alphabetized)
 import { registerPerplexityAskTool } from "./tools/perplexityAsk/index.js";
@@ -100,6 +101,38 @@ async function startTransport(): Promise<McpServer | ServerType | void> {
   );
 }
 
+/** Interval for periodic cache statistics logging (5 minutes) */
+const CACHE_STATS_LOG_INTERVAL_MS = 5 * 60 * 1000;
+
+/**
+ * Starts periodic cache statistics logging for observability.
+ * Logs cache hit rates, memory usage, and entry counts.
+ */
+function startCacheStatsLogging(): NodeJS.Timeout {
+  return setInterval(() => {
+    const stats = cacheService.getCacheStats();
+    const context = requestContextService.createRequestContext({
+      operation: "cacheStatsLogging",
+    });
+
+    // Only log if there's any cache activity
+    if (stats.responseCache.size > 0 || stats.fileCache.size > 0 || stats.inFlightRequests > 0) {
+      logger.info("Cache statistics", {
+        ...context,
+        responseCache: {
+          entries: stats.responseCache.size,
+          memoryBytes: stats.responseCache.calculatedSize,
+        },
+        fileCache: {
+          entries: stats.fileCache.size,
+          memoryBytes: stats.fileCache.calculatedSize,
+        },
+        inFlightRequests: stats.inFlightRequests,
+      });
+    }
+  }, CACHE_STATS_LOG_INTERVAL_MS);
+}
+
 /**
  * Main application entry point. Initializes and starts the MCP server.
  */
@@ -110,6 +143,14 @@ export async function initializeAndStartServer(): Promise<void | McpServer | Ser
   logger.info("MCP Server initialization sequence started.", context);
   try {
     const result = await startTransport();
+
+    // Start periodic cache stats logging after successful initialization
+    startCacheStatsLogging();
+    logger.info("Cache statistics logging enabled", {
+      ...context,
+      intervalMs: CACHE_STATS_LOG_INTERVAL_MS,
+    });
+
     logger.info("MCP Server initialization sequence completed successfully.", context);
     return result;
   } catch (err) {
